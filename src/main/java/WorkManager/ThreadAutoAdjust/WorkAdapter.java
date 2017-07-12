@@ -81,7 +81,7 @@ public class WorkAdapter implements Work {
 		for(int i=0;i<index;i++){
 			Math.pow(Random.nextDouble(),Random.nextDouble());
 		}
-		System.out.println(System.currentTimeMillis()-l);
+//		System.out.println(System.currentTimeMillis()-l);
 		
 	}
 }

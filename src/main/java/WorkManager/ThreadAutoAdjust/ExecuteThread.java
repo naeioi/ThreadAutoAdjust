@@ -142,10 +142,8 @@ public final class ExecuteThread extends Thread {
 	void execute(Runnable runnable) {
 		try {
 			executeCount++;
-			synchronized (runnable) {
-				runnable.run();
-				runnable.notify();
-			}
+			runnable.run();
+			
 		} catch (ThreadDeath threaddeath) {
 			throw threaddeath;
 		} catch (RequestManager.ShutdownError shutdownerror) {

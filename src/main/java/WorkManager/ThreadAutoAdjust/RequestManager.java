@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 
 import javax.management.MBeanServer;
 
-public final class RequestManager {
+public final class RequestManager{
 	private static final int INCREMENT_ADVISOR_PERIOD = 2000;
 
 	private static final int INCREMENT_ADVISOR_START_DELAY = 20000;
@@ -134,13 +134,14 @@ public final class RequestManager {
 	public static RequestManager getInstance() {
 		return Factory.THE_ONE;
 	}
+	
+	
 
 
-	public void executeIt() {
-		WorkAdapter workadapter=new WorkAdapter();
-		while(true){
+	public boolean executeIt() {
+			WorkAdapter workadapter=new WorkAdapter();
 			ExecuteThread executethread = null;
-			int i = 0;
+//			int i = 0;
 			synchronized (this) {
 				if (idleThreads.size() > 0)
 					executethread = (ExecuteThread) idleThreads.pop();		
@@ -148,30 +149,14 @@ public final class RequestManager {
 				if (executethread != null) {
 					workadapter.started = true;
 				} else {
-					addToPriorityQueue(workadapter);
-					try {
-						synchronized (workadapter) {
-							workadapter.wait();
-							continue;
-						}
-						
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					addToPriorityQueue(workadapter);	
+					return false;
 				}
 			}
 			departures++;		
 				executethread.notifyRequest(workadapter);
-				try {
-					synchronized (workadapter) {
-						workadapter.wait();
-					}
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-		}	
+				return true;
+			
 	}
 
 	private void addToPriorityQueue(WorkAdapter workadapter) {
