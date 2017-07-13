@@ -13,7 +13,7 @@ public class Main {
 
 	private static final int INCREMENT_ADVISOR_START_DELAY = 10000;
 
-	private static int USER_NUMBER = 1000;
+	private static int USER_NUMBER = 200;
 
 	public static void main(String[] args) {
 		RequestManager rm = RequestManager.getInstance();
@@ -21,15 +21,16 @@ public class Main {
 
 			@Override
 			public void run() {
-				System.out.println(rm.getQueueDepth());
+				System.out.println(rm.getTotalRequestsCount());
 
 			}
-		}, 0, 1000);
-		for (int i = 0; i < USER_NUMBER; i++) {
+		}, 0, 2000);
+		for (int i = 0;; i++) {
 			// WorkAdapter workAdapter=new WorkAdapter();
 			rm.executeIt();
+			
 		}
-		Thread.currentThread().suspend();
+//		Thread.currentThread().suspend();
 
 	}
 

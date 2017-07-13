@@ -14,9 +14,11 @@ import javax.management.MBeanServer;
 public final class RequestManager{
 	private static final int INCREMENT_ADVISOR_PERIOD = 2000;
 
-	private static final int INCREMENT_ADVISOR_START_DELAY = 20000;
+	private static final int INCREMENT_ADVISOR_START_DELAY = 2000;
 
 	private static final int MAX_STANDBY_THREADS = 200;
+	
+	private static final int MAX_QUEUE_SIZE = 1000;
 
 	// TODO what is the purpose of creating ACTIVATE_REQUEST and
 	// SHUTDOWN_REQUEST?
@@ -160,11 +162,13 @@ public final class RequestManager{
 	}
 
 	private void addToPriorityQueue(WorkAdapter workadapter) {
+		if(queue.size()<MAX_QUEUE_SIZE){
 		if (queue.size() == 0)
 			busyPeriodStart = System.currentTimeMillis();
 		queue.add(workadapter, requestClass);
 		queueDepth++;
 		queueNonEmpty++;
+		}
 	}
 
 	private boolean createThreadAndExecute(int i, WorkAdapter workadapter) {

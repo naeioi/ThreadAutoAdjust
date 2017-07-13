@@ -77,7 +77,7 @@ public class WorkAdapter implements Work {
 	public void run() {
 		Random Random=new Random();
 		long l=System.currentTimeMillis();
-		int index=(int)(Random.nextFloat()*1000000);
+		int index=(int)(Random.nextFloat()*10000);
 		for(int i=0;i<index;i++){
 			Math.pow(Random.nextDouble(),Random.nextDouble());
 		}
