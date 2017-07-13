@@ -21,7 +21,7 @@ public class Main {
 
 			@Override
 			public void run() {
-				System.out.println(rm.getTotalRequestsCount());
+				System.out.println(rm.getActiveExecuteThreadCount());
 
 			}
 		}, 0, 2000);

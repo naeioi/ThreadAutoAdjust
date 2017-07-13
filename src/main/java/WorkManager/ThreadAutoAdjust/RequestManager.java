@@ -237,11 +237,11 @@ public final class RequestManager{
 		// workCompleted(workadapter);
 		synchronized (this) {
 			workCompleted(workadapter);
-//			if (canBeDeactivated(workadapter, executethread)) {
-//				deactivateThread(executethread);
-//				// System.out.println(executethread + " be deactivated!");
-//				return true;
-//			}
+			if (canBeDeactivated(workadapter, executethread)) {
+				deactivateThread(executethread);
+				// System.out.println(executethread + " be deactivated!");
+				return true;
+			}
 			workadapter1 = getNext();
 			if (workadapter1 == null) {
 
@@ -319,12 +319,10 @@ public final class RequestManager{
 	 * @param executethread
 	 * @return
 	 */
-//	private boolean canBeDeactivated(WorkAdapter workadapter,
-//			ExecuteThread executethread) {
-//		return (toDecrement > 0 || executethread.isStandby())
-//				&& isMinConstraintSatisfied(workadapter)
-//				&& isMaxConstraintQueueEmpty(workadapter);
-//	}
+	private boolean canBeDeactivated(WorkAdapter workadapter,
+			ExecuteThread executethread) {
+		return (toDecrement > 0 || executethread.isStandby());
+	}
 
 	/*
 	 * if this WorkAdapter's MaxConstraint has not work to do. @param
@@ -523,14 +521,14 @@ public final class RequestManager{
 	 * @param executethread
 	 * @return
 	 */
-//	private boolean deactivateThread(ExecuteThread executethread) {
-//		if (!executethread.isStandby()) {
-//			toDecrement--;
-//			healthyThreads.remove(executethread);
-//		}
-//		addToStandbyPool(executethread);
-//		return true;
-//	}
+	private boolean deactivateThread(ExecuteThread executethread) {
+		if (!executethread.isStandby()) {
+			toDecrement--;
+			healthyThreads.remove(executethread);
+		}
+		addToStandbyPool(executethread);
+		return true;
+	}
 
 	private long updateStats(WorkAdapter workadapter,
 			ExecuteThread executethread) {
@@ -550,9 +548,11 @@ public final class RequestManager{
 		long l = System.currentTimeMillis();
 		if (serviceclassstatssupport != null) {
 			long l1 = l - executethread.timeStamp;
-			serviceclassstatssupport.completedCount++;
-			serviceclassstatssupport.totalThreadUse += l1;
-			serviceclassstatssupport.threadUseSquares += l1 * l1;
+			synchronized (RequestManager.class) {
+				serviceclassstatssupport.completedCount++;
+				serviceclassstatssupport.totalThreadUse += l1;
+				serviceclassstatssupport.threadUseSquares += l1 * l1;
+			}			
 		}
 		return l;
 	}
