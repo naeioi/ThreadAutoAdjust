@@ -506,7 +506,7 @@ public final class IncrementAdvisor extends TimerTask {
         int j = maxY / i;
         if (j <= 1)
             return 1;
-        // ����ܳ���20
+        // 最大不能超过20
         int k = Math.min(20, 3 * j + 1);
         if (debugEnabled())
             log("Calculated increment interval=" + k);
@@ -567,7 +567,7 @@ public final class IncrementAdvisor extends TimerTask {
         }
     }
 
-    // �� max ��ȵı仯�Ƿ��㹻��
+    // 与 max 相比的变化是否足够大
     private boolean notEnoughVariationFromMax() {
         if (lastThroughput >= maxThroughput)
             return true;
