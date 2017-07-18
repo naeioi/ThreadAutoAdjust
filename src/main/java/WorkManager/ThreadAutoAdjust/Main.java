@@ -4,10 +4,6 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.omg.CORBA.PRIVATE_MEMBER;
-
-import sun.tools.jar.resources.jar;
-
 public class Main {
 	private static final int INCREMENT_ADVISOR_PERIOD = 2000;
 
@@ -16,7 +12,7 @@ public class Main {
 	private static int USER_NUMBER = 200;
 
 	public static void main(String[] args) {
-		RequestManager rm = RequestManager.getInstance();
+		final RequestManager rm = RequestManager.getInstance();
 		(new Timer(true)).schedule(new TimerTask() {
 
 			@Override
