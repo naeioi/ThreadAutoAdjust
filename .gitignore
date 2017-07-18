@@ -1,0 +1,18 @@
+# Maven
+target/
+
+# IDEA
+.idea/
+out/
+
+*.iws
+*.iml
+*.ipr
+
+*.db
+
+# C
+*.o
+
+# Eclipse
+.classpath
