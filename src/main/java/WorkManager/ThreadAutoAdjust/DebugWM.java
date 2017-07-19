@@ -1,11 +1,11 @@
 package WorkManager.ThreadAutoAdjust;
 
 public class DebugWM {
-	public static int debug_Thread = 0; // ThreadPool������Ϣ���ƿ���
+	public static int debug_Thread = 0; // ThreadPool运行信息控制开关
 
-	public static int debug_LowWM = 0; // �ͼ�WorkManagerʵ�ֿ���
+	public static int debug_LowWM = 0; // 低级WorkManager实现开关
 
-	public static int debug_entrypoint = 0;// WorkManager �����Ϣ����
+	public static int debug_entrypoint = 0;// WorkManager 入口信息控制
 
 	public static int debug_MaxThread = 0;
 
@@ -25,7 +25,7 @@ public class DebugWM {
 
 	public static boolean debug_WMService = false;
 
-	public static boolean debug_ThreadPriorty = false; // ���ڴ�ӡ�̵߳����ȼ���Ϣ\\
+	public static boolean debug_ThreadPriorty = false; // 用于打印线程的优先级信息\\
 
 	public static boolean debug_ThreadPriortyManager = false;
 

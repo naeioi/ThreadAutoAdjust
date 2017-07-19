@@ -3,15 +3,15 @@ package WorkManager.ThreadAutoAdjust;
 
 
 /**
- * <p>Title: Work Manager��ʵ��</p>
+ * <p>Title: Work Manager的实现</p>
  *
- * <p>Description: ����OnceASƽ̨</p>
+ * <p>Description: 基于OnceAS平台</p>
  *
  * <p>Copyright: Copyright (c) 2006</p>
  *
- * <p>Company: �й���ѧԺ����о���</p>
+ * <p>Company: 中国科学院软件研究所</p>
  *
- * @author ����
+ * @author 张磊
  * @version 1.0
  */
 import java.util.Iterator;
