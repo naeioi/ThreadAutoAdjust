@@ -2,24 +2,25 @@ package WorkManager.ThreadAutoAdjust;
 
 /**
  * <p>
- * Title: Work Manager��ʵ��
+ * Title: Work Manager的实现
  * </p>
- * 
+ *
  * <p>
- * Description: ����OnceASƽ̨
+ * Description: 基于OnceAS平台
  * </p>
- * 
+ *
  * <p>
  * Copyright: Copyright (c) 2006
  * </p>
- * 
+ *
  * <p>
- * Company: �й���ѧԺ����о���
+ * Company: 中国科学院软件研究所
  * </p>
- * 
- * @author ����
+ *
+ * @author 张磊
  * @version 1.0
  */
+
 
 public interface Work extends Runnable {
 
