@@ -16,10 +16,40 @@ import java.util.TimerTask;
 
 public final class IncrementAdvisor extends TimerTask {
     private static final class SmoothedStats {
+        private double n;
+        private double sum;
+        private double squaresSum;
+        private static final double NORM_CUMULATIVE[] = {
+                0.0013498980320000001, 0.0018658133009999999, 0.0025551303310000001, 0.0034669738040000002, 0.0046611880249999996,
+                0.0062096653260000001, 0.0081975359259999995, 0.010724110021000001, 0.013903447512999999, 0.017864420562000001,
+                0.022750131948000001, 0.028716559815000001, 0.035930319112000002, 0.044565462761999998, 0.054799291698999997,
+                0.066807201270000005, 0.080756659236000006, 0.096800484586000005, 0.11506967022300001, 0.13566606094799999,
+                0.158655253932D, 0.184060125347D, 0.21185539858300001D, 0.24196365222399999D, 0.27425311775099998D,
+                0.30853753872599998D,
+                0.34457825839D, 0.38208857781099997D, 0.42074029056200002D,
+                0.46017216272299999D, 0.5D, 0.53982783727700001D,
+                0.57925970943899996D, 0.61791142218899997D, 0.65542174161D,
+                0.69146246127400002D, 0.72574688224899997D, 0.75803634777600004D,
+                0.78814460141700005D, 0.815939874653D, 0.84134474606800003D,
+                0.86433393905199996D, 0.88493032977700004D, 0.90319951541400001D,
+                0.91924334076400005D, 0.93319279873000005D, 0.945200708301D,
+                0.95543453723799998D, 0.96406968088800005D, 0.97128344018500001D,
+                0.97724986805199998D, 0.98213557943800001D, 0.98609655248700001D,
+                0.98927588997899996D, 0.99180246407399997D, 0.99379033467400002D,
+                0.99533881197499996D, 0.99653302619600004D, 0.99744486966900003D,
+                0.998134186699D, 0.99865010196799997D};
+
+        private static double normCumulative(double d) {
+            if (d < -3D)
+                d = -3D;
+            if (d > 3D)
+                d = 3D;
+            return NORM_CUMULATIVE[(int) (10D * (d + 3D))];
+        }
 
         void add(double d) {
-            double d1 = 1.0D - 1.0D / IncrementAdvisor.HORIZON;
-            n = d1 * n + 1.0D;
+            double d1 = 1.0 - 1.0 / IncrementAdvisor.HORIZON;
+            n = d1 * n + 1.0;
             sum = d1 * sum + d;
             squaresSum = d1 * squaresSum + d * d;
         }
@@ -30,7 +60,7 @@ public final class IncrementAdvisor extends TimerTask {
 
         boolean exceedsZ(double d, double d1) {
             double d2 = sum - n * d;
-            return n > 1.0D && d2 * d2 > (n * squaresSum - sum * sum) * d1 * d1;
+            return n > 1.0 && d2 * d2 > (n * squaresSum - sum * sum) * d1 * d1;
         }
 
         double zScore(double d) {
@@ -43,16 +73,10 @@ public final class IncrementAdvisor extends TimerTask {
             double d1 = (((squaresSum - (sum * sum) / n) + smoothedstats.squaresSum) - (smoothedstats.sum * smoothedstats.sum)
                     / smoothedstats.n)
                     / (n + smoothedstats.n);
-            double d2 = d1 * (1.0D / n + 1.0D / smoothedstats.n);
-            return d2 != 0.0D ? IncrementAdvisor.normCumulative(d
-                    / Math.sqrt(d2)) : d <= 0.0D ? 0 : 1;
+            double d2 = d1 * (1.0 / n + 1.0 / smoothedstats.n);
+            return d2 != 0.0 ? normCumulative(d
+                    / Math.sqrt(d2)) : d <= 0.0 ? 0 : 1;
         }
-
-        private double sum;
-
-        private double squaresSum;
-
-        private double n;
 
         SmoothedStats(double d) {
             n = 1.0D;
@@ -78,31 +102,6 @@ public final class IncrementAdvisor extends TimerTask {
     private static final int Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD = 15000;
 
     private static final int HIGH_THROUGHPUT_THRESHOLD = 20000;
-
-    private static final double NORM_CUMULATIVE[] = {0.0013498980320000001D,
-            0.0018658133009999999D, 0.0025551303310000001D,
-            0.0034669738040000002D, 0.0046611880249999996D,
-            0.0062096653260000001D, 0.0081975359259999995D,
-            0.010724110021000001D, 0.013903447512999999D,
-            0.017864420562000001D, 0.022750131948000001D,
-            0.028716559815000001D, 0.035930319112000002D,
-            0.044565462761999998D, 0.054799291698999997D,
-            0.066807201270000005D, 0.080756659236000006D,
-            0.096800484586000005D, 0.11506967022300001D, 0.13566606094799999D,
-            0.158655253932D, 0.184060125347D, 0.21185539858300001D,
-            0.24196365222399999D, 0.27425311775099998D, 0.30853753872599998D,
-            0.34457825839D, 0.38208857781099997D, 0.42074029056200002D,
-            0.46017216272299999D, 0.5D, 0.53982783727700001D,
-            0.57925970943899996D, 0.61791142218899997D, 0.65542174161D,
-            0.69146246127400002D, 0.72574688224899997D, 0.75803634777600004D,
-            0.78814460141700005D, 0.815939874653D, 0.84134474606800003D,
-            0.86433393905199996D, 0.88493032977700004D, 0.90319951541400001D,
-            0.91924334076400005D, 0.93319279873000005D, 0.945200708301D,
-            0.95543453723799998D, 0.96406968088800005D, 0.97128344018500001D,
-            0.97724986805199998D, 0.98213557943800001D, 0.98609655248700001D,
-            0.98927588997899996D, 0.99180246407399997D, 0.99379033467400002D,
-            0.99533881197499996D, 0.99653302619600004D, 0.99744486966900003D,
-            0.998134186699D, 0.99865010196799997D};
 
     private SmoothedStats throughput[];
 
@@ -167,13 +166,6 @@ public final class IncrementAdvisor extends TimerTask {
         return Integer.getInteger(s).intValue();
     }
 
-    private static double normCumulative(double d) {
-        if (d < -3D)
-            d = -3D;
-        if (d > 3D)
-            d = 3D;
-        return NORM_CUMULATIVE[(int) (10D * (d + 3D))];
-    }
 
     /**
      * @param i current healthy threads count
