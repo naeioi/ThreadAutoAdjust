@@ -407,8 +407,9 @@ public final class IncrementAdvisor extends TimerTask {
     }
 
     private boolean mustIncrementByOne(double d, double d1, int i, int j) {
-        if (j > i + 1 && d1 == 0.0013498980320000001D
-                && d == 0.0013498980320000001D) {
+        if (j > i + 1
+                && d1 == SmoothedStats.NORM_CUMULATIVE[0]
+                && d == SmoothedStats.NORM_CUMULATIVE[0]) {
             SmoothedStats asmoothedstats[] = throughput;
             throughput = new SmoothedStats[i];
             System.arraycopy(asmoothedstats, 0, throughput, 0,
