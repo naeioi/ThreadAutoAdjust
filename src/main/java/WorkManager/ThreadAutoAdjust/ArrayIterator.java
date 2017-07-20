@@ -8,23 +8,23 @@ public final class ArrayIterator implements Iterator {
     private final int maxIndex;
     private int index;
 
-    public ArrayIterator(Object aobj[]) {
-        this(aobj, 0, aobj.length);
+    public ArrayIterator(Object array[]) {
+        this(array, 0, array.length);
     }
 
-    public ArrayIterator(Object aobj[], int i, int j) {
-        if (i < 0) {
+    public ArrayIterator(Object[] array, int startIndex, int count) {
+        if (startIndex < 0) {
             throw new IllegalArgumentException();
         }
-        if (i > aobj.length) {
+        if (startIndex > array.length) {
             throw new IllegalArgumentException();
         }
-        if (j > aobj.length - i) {
+        if (count > array.length - startIndex) {
             throw new IllegalArgumentException();
         } else {
-            array = aobj;
-            index = i;
-            maxIndex = j + i;
+            this.array = array;
+            this.index = startIndex;
+            this.maxIndex = count + startIndex;
             return;
         }
     }
