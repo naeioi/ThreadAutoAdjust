@@ -64,16 +64,11 @@ public class WorkAdapter implements Work {
 	// end
 
 	public long creationTimeStamp;
-
 	public long startedTimeStamp;
-
 	public boolean started;
-
 	private boolean scheduled;
-	
 	public FairShareRequestClass requestClass;
 
-	@Override
 	public void run() {
 		Random Random=new Random();
 		long l=System.currentTimeMillis();

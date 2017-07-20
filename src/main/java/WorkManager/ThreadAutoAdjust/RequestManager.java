@@ -20,8 +20,7 @@ public final class RequestManager{
 	
 	private static final int MAX_QUEUE_SIZE = 1000;
 
-	// TODO what is the purpose of creating ACTIVATE_REQUEST and
-	// SHUTDOWN_REQUEST?
+	// TODO what is the purpose of creating ACTIVATE_REQUEST and SHUTDOWN_REQUEST?
 	private static final WorkAdapter ACTIVATE_REQUEST = new ActivateRequest();
 
 	private static final WorkAdapter SHUTDOWN_REQUEST = new ShutdownRequest();
