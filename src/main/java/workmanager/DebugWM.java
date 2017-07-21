@@ -1,9 +1,9 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 public final class DebugWM {
     public static int debug_Thread = 0; // ThreadPool运行信息控制开关
     public static int debug_LowWM = 0; // 低级WorkManager实现开关
-    public static int debug_entrypoint = 0;// WorkManager 入口信息控制
+    public static int debug_entrypoint = 0;// workmanager 入口信息控制
     public static int debug_MaxThread = 0;
     public static boolean debug_MinThread = false;
     public static boolean debug_IncrementAdvisor = false;

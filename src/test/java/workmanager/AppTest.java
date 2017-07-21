@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 import junit.framework.Test;
 import junit.framework.TestCase;

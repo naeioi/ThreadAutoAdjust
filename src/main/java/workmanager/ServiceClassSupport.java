@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 public abstract class ServiceClassSupport extends ServiceClassStatsSupport
 		implements RequestClass, Comparable {

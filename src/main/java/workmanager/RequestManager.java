@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -9,56 +9,35 @@ import java.util.logging.Logger;
 
 public final class RequestManager {
     private static final int INCREMENT_ADVISOR_PERIOD = 2000;
-
     private static final int INCREMENT_ADVISOR_START_DELAY = 2000;
-
     private static final int MAX_STANDBY_THREADS = 200;
-
     private static final int MAX_QUEUE_SIZE = 1000;
 
     // TODO what is the purpose of creating ACTIVATE_REQUEST and SHUTDOWN_REQUEST?
     private static final WorkAdapter ACTIVATE_REQUEST = new ActivateRequest();
-
     private static final WorkAdapter SHUTDOWN_REQUEST = new ShutdownRequest();
-
     private final List allThreads;
-
     private final Stack idleThreads;
-
     private final List healthyThreads;
-
     private final Stack standbyThreadPool;
-
     private final HashSet hogs;
-
     public final CalendarQueue queue;
-
     private long busyPeriodStart;
-
     private int toDecrement;
-
     private final ThreadGroup threadGroup;
-
     private final BitSet recycledIDs;
-
     public long departures = 0;
 
     public long mtcDepartures = 0;
-
     public long rejectedCount = 0;
-
     public long canceledCount = 0;
 
     private int queueDepth;
-
     private final IncrementAdvisor incrementAdvisor;
-
     private int queueNonEmpty;
-
     private int maxThreadIdValue;
 
     static FairShareRequestClass requestClass = new FairShareRequestClass("Default");
-
     private static Logger log = Logger.getLogger(RequestManager.class.toString());
 
     public static final class ShutdownError extends Error {
@@ -189,7 +168,7 @@ public final class RequestManager {
     }
 
     /**
-     * Register idle thread and judge if this WorkAdapter has another work to do
+     * Register idle thread and judge if this WorkAdapter has another workmanager to do
      *
      * @param executethread
      * @param workadapter
@@ -216,7 +195,7 @@ public final class RequestManager {
 
                 idleThreads.push(executethread);
                 // System.out.println(executethread + " be put idleThreads pool
-                // because of no work to do.");
+                // because of no workmanager to do.");
                 l1 = getBusyPeriod(l2);
                 if (l1 > 0L)
                     l = queue.resetVirtualTime();
@@ -232,7 +211,7 @@ public final class RequestManager {
             departures++;
             executethread.setRequest(workadapter1, l2);
             // System.out.println("ExecuteThread[" + executethread +"] continue
-            // to execute work["+workadapter1+"].");
+            // to execute workmanager["+workadapter1+"].");
             return false;
         }
     }

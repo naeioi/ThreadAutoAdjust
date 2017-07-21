@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 public class ServiceClassesStats {
 

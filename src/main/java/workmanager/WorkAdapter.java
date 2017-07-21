@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 import java.util.Random;
 
@@ -56,7 +56,7 @@ public class WorkAdapter implements Work {
 		return this;
 	}
 
-	// to check whether effective work exists: add by syk
+	// to check whether effective workmanager exists: add by syk
 	public boolean hasEffective() {
 		return true;
 	}

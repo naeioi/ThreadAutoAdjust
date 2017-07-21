@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 import java.io.InputStream;
 import java.util.ConcurrentModificationException;
@@ -222,7 +222,7 @@ public final class IncrementAdvisor extends TimerTask {
             break;
         } while (true);
 
-        // j : work completed in l2
+        // j : workmanager completed in l2
         int work_completed_duration = work_completed_total - previousCompleted;
         if (work_completed_duration == 0) {
             zeroCompletedDuration++;

@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 /*import weblogic.utils.collections.Stack;
 import weblogic.utils.collections.ArrayIterator;

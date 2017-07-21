@@ -1,4 +1,4 @@
-package WorkManager.ThreadAutoAdjust;
+package workmanager;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -143,7 +143,6 @@ public final class ExecuteThread extends Thread {
 		try {
 			executeCount++;
 			runnable.run();
-			
 		} catch (ThreadDeath threaddeath) {
 			throw threaddeath;
 		} catch (RequestManager.ShutdownError shutdownerror) {
