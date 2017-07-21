@@ -204,20 +204,6 @@ public final class RequestManager{
 		}
 	}
 
-//	public boolean executeIfIdle(WorkAdapter workadapter) {
-//		synchronized (this) {
-//			if (idleThreads.size() == 0)
-//				return false;
-//			workadapter.wm.accepted();
-//			ExecuteThread executethread = (ExecuteThread) idleThreads.pop();
-//			workadapter.wm.started();
-//			workadapter.started = true;
-//			departures++;
-//			executethread.notifyRequest(workadapter);
-//			return true;
-//		}
-//	}
-
 	/**
 	 * Register idle thread and judge if this WorkAdapter has another work to do
 	 * 
@@ -267,49 +253,6 @@ public final class RequestManager{
 		}
 	}
 
-	/**
-	 * Register idle thread when the current work is stuck and judge if this
-	 * WorkAdapter has another work to do
-	 * 
-	 * @param executethread
-	 * @param workadapter
-	 * @return
-	 */
-//	public boolean registerIdleWhenStuck(ExecuteThread executethread,
-//			WorkAdapter workadapter) {
-//		executethread.notifyRequest(SHUTDOWN_REQUEST);
-//		executethread.reset();
-//		long l = 0;
-//		long l1 = 0;
-//		long l2 = updateStats(workadapter, executethread);
-//		WorkAdapter workadapter1;
-//		workCanceled(workadapter);
-//		synchronized (this) {
-//			if (canBeDeactivated(workadapter, executethread)) {
-//				deactivateThread(executethread);
-//				return true;
-//			}
-//			workadapter1 = getNext(workadapter, l2);
-//			if (workadapter1 == null) {
-//				idleThreads.push(executethread);
-//				l1 = getBusyPeriod(l2);
-//				if (l1 > 0L)
-//					l = queue.resetVirtualTime();
-//			} else {
-//				workadapter1.wm.started();
-//				workadapter1.started = true;
-//			}
-//		}
-//		if (workadapter1 == null) {
-//			if (l1 > 0L)
-//				fireQueueEmptied(l1, l);
-//			return true;
-//		} else {
-//			departures++;
-//			executethread.setRequest(workadapter1, l2);
-//			return false;
-//		}
-//	}
 
 	/**
 	 * if this WorkAdapter's max and min constraints are satisfied.
@@ -322,57 +265,6 @@ public final class RequestManager{
 			ExecuteThread executethread) {
 		return (toDecrement > 0 || executethread.isStandby());
 	}
-
-	/*
-	 * if this WorkAdapter's MaxConstraint has not work to do. @param
-	 * workadapter @return
-	 */
-//	private static boolean isMaxConstraintQueueEmpty(WorkAdapter workadapter) {
-//		if (workadapter == null)
-//			return true;
-//		MaxThreadsConstraint maxthreadsconstraint = workadapter
-//				.getMaxThreadsConstraint();
-//		return maxthreadsconstraint == null
-//				|| maxthreadsconstraint.getQueueSize() == 0;
-//	}
-
-	/**
-	 * if this WorkAdapter's MinConstraint is satisfied
-	 * 
-	 * @param workadapter
-	 * @return
-	 */
-//	private static boolean isMinConstraintSatisfied(WorkAdapter workadapter) {
-//		if (workadapter == null)
-//			return true;
-//		MinThreadsConstraint minthreadsconstraint = workadapter
-//				.getMinThreadsConstraint();
-//		return minthreadsconstraint == null
-//				|| minthreadsconstraint.getMustRunCount() == 0;
-//	}
-
-//	void executeImmediately(WorkAdapter aworkadapter[]) {
-//		// need synchronized?
-//		ExecuteThread aexecutethread[] = null;
-//		int ai[] = null;
-//		// getEffective works add by syk
-//		getEffectiveWorks(aworkadapter);
-//		// end
-//		if (aworkadapter != null && aworkadapter.length != 0) {
-//			synchronized (this) {
-//				aexecutethread = getStandbyThreads(aworkadapter.length);
-//				ai = threadID(aworkadapter.length - aexecutethread.length);
-//				for (int i = 0; i < aworkadapter.length; i++) {
-//					aworkadapter[i].wm.started();
-//					aworkadapter[i].started = true;
-//					mtcDepartures++;
-//					departures++;
-//				}
-//			}
-//			executeWorkList(aworkadapter, aexecutethread, ai);
-//		}
-//		return;
-//	}
 
 	private void getEffectiveWorks(WorkAdapter workadapters[]) {
 		if (workadapters != null) {
@@ -406,23 +298,6 @@ public final class RequestManager{
 		return aexecutethread;
 	}
 
-	/**
-	 * get a MaxConstraintProxy
-	 * 
-	 * @param workadapter
-	 * @return
-	 */
-//	private static WorkAdapter getMaxConstraintProxy(WorkAdapter workadapter) {
-//		if (workadapter == null)
-//			return null;
-//		MaxThreadsConstraint maxthreadsconstraint = workadapter
-//				.getMaxThreadsConstraint();
-//		if (maxthreadsconstraint == null)
-//			return null;
-//		else
-//			return maxthreadsconstraint.getProxy();
-//	}
-
 	private long getBusyPeriod(long l) {
 		if (busyPeriodStart == 0L) {
 			return 0L;
@@ -439,47 +314,7 @@ public final class RequestManager{
 		}
 	}
 
-//	private static void workCanceled(WorkAdapter workadapter) {
-//		if (workadapter == ACTIVATE_REQUEST || workadapter == SHUTDOWN_REQUEST)
-//			return;
-//		if (workadapter != null) {
-//			workadapter.wm.canceled();
-//			workadapter.prepareForReuse();
-//		}
-//	}
-
-//	private static void reclaimStuckThread(ExecuteThread executethread) {
-//		executethread.setStuckThread(false);
-//		StuckThreadManager stuckthreadmanager = executethread.getWorkManager()
-//				.getStuckThreadManager();
-//		if (stuckthreadmanager != null)
-//			stuckthreadmanager.threadUnStuck(executethread.id);
-//	}
-
-	/**
-	 * Get a work form workadapter
-	 * 
-	 * @param workadapter
-	 * @param l
-	 * @return
-	 */
 	private WorkAdapter getNext() {
-		// first check if the last work has min or max contraint
-		// if has, then excute
-		// �����work������wm����min�������е��߳���С��min.count���min��queue�л��һ��workadapter
-		// �ٶ�min<=max��by syk
-	//	WorkAdapter workadapter1 = getMinConstraintWork(workadapter, l);
-//		if (workadapter1 != null)
-//			return workadapter1;
-		// �����work������wm����max�����max�Ļ��һ��workadapter������max.ProxyEntry��null if size
-		// of max queue is 0) ��by syk
-		//WorkAdapter workadapter3 = getMaxConstraintProxy(workadapter);
-//		WorkAdapter workadapter2;
-//		if (workadapter3 != null) // get from max queue through maxproxy
-//									// workadager3
-//			workadapter2 = getFromPriorityQueue(workadapter3);
-//		else
-//			workadapter2 = getFromPriorityQueue();
 		WorkAdapter workadapter=getFromPriorityQueue();
 		if (workadapter != null && workadapter != SHUTDOWN_REQUEST)
 			queueDepth--;
@@ -562,14 +397,6 @@ public final class RequestManager{
 		executethread.setHog(false);
 	}
 
-//	synchronized void shutdown() {
-//		ExecuteThread executethread;
-//		for (; !idleThreads.isEmpty(); executethread
-//				.notifyRequest(SHUTDOWN_REQUEST))
-//			executethread = (ExecuteThread) idleThreads.pop();
-//
-//	}
-
 	private void fireQueueEmptied(long l, long l1) {
 		synchronized (requestClass) {
 			float f = (float) l1 / (float) l;
@@ -577,120 +404,6 @@ public final class RequestManager{
 
 		}
 	}
-
-//	public void activeRequestClassesInOverload(int i) {
-//		if (requestClasses.size() == 0)
-//			return;
-//		ArrayList arraylist;
-//		synchronized (requestClasses) {
-//			arraylist = new ArrayList(requestClasses);
-//		}
-//		Collections.sort(arraylist);
-//		activeRequestClassNamesInOverload.clear();
-//		int j = 0;
-//		Iterator iterator = arraylist.iterator();
-//		do {
-//			if (!iterator.hasNext())
-//				break;
-//			RequestClass requestclass = (RequestClass) iterator.next();
-//			if (requestclass != null) {
-//				j += requestclass.getPendingRequestsCount();
-//				if (j >= i)
-//					return;
-//				activeRequestClassNamesInOverload.add(requestclass.getName());
-//			}
-//		} while (true);
-//	}
-//
-//	boolean acceptRequestClass(RequestClass requestclass) {
-//		return activeRequestClassNamesInOverload.contains(requestclass
-//				.getName());
-//	}
-//
-//	public void register(RequestClass requestclass) {
-//		synchronized (requestClasses) {
-//			requestClasses.add(requestclass);
-//		}
-//	}
-//
-//	public void deregister(RequestClass requestclass) {
-//		synchronized (requestClasses) {
-//			requestClasses.remove(requestclass);
-//		}
-//	}
-//
-//	public synchronized void register(MinThreadsConstraint minthreadsconstraint) {
-//		if (minthreadsconstraint == null)
-//			return;
-//		if (minThreadsConstraints == null) {
-//			minThreadsConstraints = new MinThreadsConstraint[1];
-//			minThreadsConstraints[0] = minthreadsconstraint;
-//			return;
-//		} else {
-//			MinThreadsConstraint aminthreadsconstraint[] = new MinThreadsConstraint[minThreadsConstraints.length + 1];
-//			System.arraycopy(minThreadsConstraints, 0, aminthreadsconstraint,
-//					0, minThreadsConstraints.length);
-//			aminthreadsconstraint[minThreadsConstraints.length] = minthreadsconstraint;
-//			minThreadsConstraints = aminthreadsconstraint;
-//			return;
-//		}
-//	}
-//
-//	public synchronized void deregister(
-//			MinThreadsConstraint minthreadsconstraint) {
-//		if (minThreadsConstraints == null)
-//			return;
-//		ArrayList arraylist = new ArrayList(minThreadsConstraints.length - 1);
-//		for (int i = 0; i < minThreadsConstraints.length; i++) {
-//			MinThreadsConstraint minthreadsconstraint1 = minThreadsConstraints[i];
-//			if (!minthreadsconstraint1.equals(minthreadsconstraint))
-//				arraylist.add(minthreadsconstraint1);
-//		}
-//
-//		minThreadsConstraints = (MinThreadsConstraint[]) (MinThreadsConstraint[]) arraylist
-//				.toArray();
-//	}
-
-	/**
-	 * get a work form MinConstraint's must run queue
-	 * 
-	 * @param workadapter
-	 * @param l
-	 * @return
-	 */
-//	private WorkAdapter getMinConstraintWork(WorkAdapter workadapter, long l) {
-//		if (workadapter == null)
-//			return null;
-//		MinThreadsConstraint minthreadsconstraint = workadapter
-//				.getMinThreadsConstraint();
-//		if (minthreadsconstraint == null)
-//			return null;
-//		// add by syk to ensuer get work from maxqueue or priority queue when
-//		// max.count== min.count
-//		if (workadapter.getMaxThreadsConstraint() != null
-//				&& workadapter.getMaxThreadsConstraint().getCount() == minthreadsconstraint
-//						.getCount())
-//			return null;
-//		// end
-//		WorkAdapter workadapter1 = minthreadsconstraint.getMustRun(l);
-//		if (workadapter1 != null) {
-//			mtcDepartures++;
-//			queueDepth--;
-//		}
-//		return workadapter1;
-//	}
-
-//	public int getMustRunCount() {
-//		if (minThreadsConstraints == null)
-//			return 0;
-//		int i = 0;
-//		for (int j = 0; j < minThreadsConstraints.length; j++) {
-//			MinThreadsConstraint minthreadsconstraint = minThreadsConstraints[j];
-//			i += minthreadsconstraint.getMustRunCount();
-//		}
-//
-//		return i;
-//	}
 
 	private synchronized void decrPoolSize(int i) {
 		for (; i > 0; i--) {
@@ -744,12 +457,6 @@ public final class RequestManager{
 		executethread.notifyRequest(ACTIVATE_REQUEST);
 	}
 
-	/**
-	 * Purge Hogs
-	 * 
-	 * @param i
-	 * @return
-	 */
 	public int purgeHogs(int i) {
 		long l = System.currentTimeMillis();
 		synchronized (this) {
@@ -861,64 +568,6 @@ public final class RequestManager{
 		return standbyThreadPool.size();
 	}
 
-//	public synchronized ArrayList getStuckThreads(long l) {
-//		if (DebugWM.debug_StuckThread)
-//			log("get into ArrayList getStuckThreads(long l)");
-//		long l1 = System.currentTimeMillis();
-//		ArrayList arraylist = null;
-//		if (hogs.size() == 0 || l == 0L)
-//			return null;
-//		Iterator iterator = hogs.iterator();// �����hogs�洢���ǿ��ɵ��߳�
-//		do {
-//			if (!iterator.hasNext())
-//				break;
-//			ExecuteThread executethread = (ExecuteThread) iterator.next();
-//			if (isThreadStuck(executethread, l1, l)) {
-//				if (arraylist == null)
-//					arraylist = new ArrayList();
-//				arraylist.add(executethread);
-//				if (!executethread.isStuck()) {
-//					log("ExecuteThread" + executethread.getName()
-//							+ " is stuck, now handle it");
-//					notifyWMOfStuckThread(executethread);
-//					executethread.setStuckThread(true);
-//
-//					ThreadPriorityManager.handleHogger(executethread,
-//							executethread.isExecutingInternalWork());
-//
-//					// this.registerIdleWhenStuck(executethread,
-//					// executethread.getCurrentWork());
-//					// this.addToStandbyPool(executethread);
-//				}
-//			}
-//		} while (true);
-//		return arraylist;
-//	}
-
-//	private static boolean isThreadStuck(ExecuteThread executethread, long l,
-//			long l1) {
-//		if (executethread == null || executethread.getCurrentWork() == null
-//				|| executethread.isExecutingInternalWork())
-//			return false;
-//		long l2 = executethread.getTimeStamp();
-//		if (l2 <= 0L)
-//			return false;
-//		long l3 = l - l2;
-//		StuckThreadManager stuckthreadmanager = executethread.getWorkManager()
-//				.getStuckThreadManager();
-//		if (stuckthreadmanager == null)
-//			return l3 >= l1;
-//		else
-//			return stuckthreadmanager.threadStuck(executethread, l3, l1);
-//	}
-//
-//	private static void notifyWMOfStuckThread(ExecuteThread executethread) {
-//		ServerWorkManagerImpl serverworkmanagerimpl = executethread
-//				.getWorkManager();
-//		if (serverworkmanagerimpl != null)
-//			serverworkmanagerimpl.stuck();
-//	}
-
 	public int getHogSize() {
 		return hogs.size();
 	}
@@ -935,11 +584,6 @@ public final class RequestManager{
 	public double getThroughput() {
 		return incrementAdvisor.getThroughput();
 	}
-
-//	public void resetActiveRequestClasses() {
-//		if (activeRequestClassNamesInOverload.size() > 0)
-//			activeRequestClassNamesInOverload.clear();
-//	}
 
 	synchronized boolean isQueueNonEmpty() {
 		boolean flag = queueNonEmpty > 0;
