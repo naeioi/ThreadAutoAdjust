@@ -17,9 +17,9 @@ public final class RequestManager {
     private static final WorkAdapter ACTIVATE_REQUEST = new ActivateRequest();
     private static final WorkAdapter SHUTDOWN_REQUEST = new ShutdownRequest();
     private final List allThreads;
-    private final Stack idleThreads;
+    private final java.util.Stack<ExecuteThread> idleThreads;
     private final List healthyThreads;
-    private final Stack standbyThreadPool;
+    private final java.util.Stack<ExecuteThread> standbyThreadPool;
     private final HashSet hogs;
     public final CalendarQueue queue;
     private long busyPeriodStart;
@@ -83,9 +83,9 @@ public final class RequestManager {
 
     private RequestManager() {
         allThreads = new ArrayList();
-        idleThreads = new Stack();
+        idleThreads = new java.util.Stack<ExecuteThread>();
         healthyThreads = new ArrayList();
-        standbyThreadPool = new Stack();
+        standbyThreadPool = new java.util.Stack<ExecuteThread>();
         hogs = new HashSet();
         queue = new CalendarQueue();
         recycledIDs = new BitSet();

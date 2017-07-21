@@ -1,5 +1,7 @@
 package workmanager;
 
+import workmanager.common.Work;
+
 import java.util.Random;
 
 public class WorkAdapter implements Work {
