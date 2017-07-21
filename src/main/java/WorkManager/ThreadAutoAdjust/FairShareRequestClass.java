@@ -2,110 +2,86 @@ package WorkManager.ThreadAutoAdjust;
 
 
 public class FairShareRequestClass extends ServiceClassSupport {
-	public static final int DEFAULT_FAIR_SHARE = 50;
+    public static final int DEFAULT_FAIR_SHARE = 50;
+    private static final double DEFAULT_INCR = 1000D;
+    private static final double PERIOD = 2000D;
+    private static final double HALF_LIFE = 300000D;
+    private static final double W;
+    private static final double WC;
+    private static final double A = 0.5D;
+    private static final double AC = 0.5D;
+    private int share;
+    private int previouslyCompleted;
+    private long previouslyUsed;
+    private double smoothedIncr;
+    private long initialIncrement;
+    private static final boolean DEBUG = DebugWM.debug_FairShareRequest;
 
-	private static final double DEFAULT_INCR = 1000D;
+    static {
+        W = Math.pow(0.5D, PERIOD / HALF_LIFE);
+        WC = 1.0D - W;
+    }
 
-	private static final double PERIOD = 2000D;
+    FairShareRequestClass(String s) {
+        this(s, DEFAULT_FAIR_SHARE);
+    }
 
-	private static final double HALF_LIFE = 300000D;
+    FairShareRequestClass(String s, String s1, String s2) {
+        this(s + "@" + s1 + "@" + s2, DEFAULT_FAIR_SHARE);
+    }
 
-	private static final double W;
+    public FairShareRequestClass(String s, int i) {
+        super(s);
+        setShare(i);
+    }
 
-	private static final double WC;
+    private void setShare(int i) {
+        if (share == i) {
+            return;
+        } else {
+            share = i;
+            smoothedIncr = DEFAULT_INCR / (double) i;
+            long l = (long) (smoothedIncr + 1.0D);
+            initialIncrement = l;
+            setIncrements(l, l);
+            return;
+        }
+    }
 
-	private static final double A = 0.5D;
+    protected long getIncrementForThreadPriorityCalculation() {
+        return initialIncrement;
+    }
 
-	private static final double AC = 0.5D;
+    public void timeElapsed(long l, ServiceClassesStats serviceclassesstats) {
+        log(this + "timeElapsed in");
+        int i = previouslyCompleted;
+        previouslyCompleted = getCompleted();
+        int j = previouslyCompleted - i;
+        long l1 = previouslyUsed;
+        previouslyUsed = getThreadUse();
+        if (j == 0) {
+            smoothedIncr = W * smoothedIncr + (WC * DEFAULT_INCR)
+                    / (double) share;
+        } else {
+            int k = (int) (previouslyUsed - l1);
+            smoothedIncr = A * smoothedIncr + (AC * (double) k)
+                    / (double) (j * share);
+        }
+        long l2 = serviceclassesstats.adjustFairShare(smoothedIncr);
+        if (l2 <= 0L)
+            l2 = 1L;
+        setIncrements(l2, l2);
+        log(this + "timeElapsed out");
+    }
 
-	private int share;
+    // by syk
+    public int getFairShare() {
+        return share;
+    }
 
-	private int previouslyCompleted;
-
-	private long previouslyUsed;
-
-	private double smoothedIncr;
-
-	private long initialIncrement;
-
-	private static final boolean DEBUG = DebugWM.debug_FairShareRequest;
-
-	static {
-		W = Math.pow(0.5D, PERIOD / HALF_LIFE);
-		WC = 1.0D - W;
-	}
-
-	FairShareRequestClass(String s) {
-		this(s, DEFAULT_FAIR_SHARE);
-	}
-
-	FairShareRequestClass(String s, String s1, String s2) {
-		this(s + "@" + s1 + "@" + s2, DEFAULT_FAIR_SHARE);
-	}
-
-	public FairShareRequestClass(String s, int i) {
-		super(s);
-		setShare(i);
-	}
-
-	private void setShare(int i) {
-		if (share == i) {
-			return;
-		} else {
-			share = i;
-			smoothedIncr = DEFAULT_INCR / (double) i;
-			long l = (long) (smoothedIncr + 1.0D);
-			initialIncrement = l;
-			setIncrements(l, l);
-			return;
-		}
-	}
-
-	protected long getIncrementForThreadPriorityCalculation() {
-		return initialIncrement;
-	}
-
-	public void timeElapsed(long l, ServiceClassesStats serviceclassesstats) {
-		log(this + "timeElapsed in");
-		int i = previouslyCompleted;
-		previouslyCompleted = getCompleted();
-		int j = previouslyCompleted - i;
-		long l1 = previouslyUsed;
-		previouslyUsed = getThreadUse();
-		if (j == 0) {
-			smoothedIncr = W * smoothedIncr + (WC * DEFAULT_INCR)
-					/ (double) share;
-		} else {
-			int k = (int) (previouslyUsed - l1);
-			smoothedIncr = A * smoothedIncr + (AC * (double) k)
-					/ (double) (j * share);
-		}
-		long l2 = serviceclassesstats.adjustFairShare(smoothedIncr);
-		if (l2 <= 0L)
-			l2 = 1L;
-		setIncrements(l2, l2);
-		log(this + "timeElapsed out");
-	}
-
-	// by syk
-	public int getFairShare() {
-		return share;
-	}
-
-//	public void updatePerformed(WMUpdateEvent e) {
-//		Object proposed = e.getProposed();
-//		if (proposed instanceof FairShareRequestClass) {
-//			setShare(((FairShareRequestClass) proposed).getFairShare());
-//			// return;
-//		}
-//		// return;
-//	}
-
-	// end
-
-	private static void log(String s) {
-		if (DEBUG)
-			System.out.println("<FairShareRequestClass>" + s);
-	}
+    private static void log(String s) {
+        if (DEBUG)
+            System.out.println("<FairShareRequestClass>" + s);
+    }
 
 }
