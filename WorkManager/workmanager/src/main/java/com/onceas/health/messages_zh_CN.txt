@@ -1,0 +1,9 @@
+HealthLogger.1=健康状态严重的服务
+HealthLogger.2=失败
+HealthLogger.3=死锁线程: 
+HealthLogger.4=空闲内存变化: 
+HealthLogger.5=临近内存溢出: 
+HealthLogger.6=内存监视启动: 
+HealthLogger.7=内存监视停止: 
+HealthLogger.8=健康状态严重的服务
+HealthLogger.9=失败原因:
