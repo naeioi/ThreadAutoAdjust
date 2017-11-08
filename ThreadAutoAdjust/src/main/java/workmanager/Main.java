@@ -1,5 +1,6 @@
 package workmanager;
 
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -16,16 +17,19 @@ public class Main {
 
 			@Override
 			public void run() {
-				System.out.println(rm.getActiveExecuteThreadCount());
+				System.out.println(rm.getActiveExecuteThreadCount() + "," + rm.getTotalRequestsCount());
 
 			}
-		}, 0, 2000);
+		}, 0, 500);
+		Random rand = new Random();
 		for (int i = 0;; i++) {
 			WorkAdapter workAdapter=new WorkAdapter();
 			rm.executeIt(workAdapter);
-			
+			try {
+				Thread.sleep(rand.nextInt(1));
+			} catch (InterruptedException e) {
+				/* no-op */
+			}
 		}
-//		Thread.currentThread().suspend();
-
 	}
 }

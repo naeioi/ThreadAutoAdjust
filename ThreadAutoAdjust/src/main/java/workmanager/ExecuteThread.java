@@ -122,7 +122,7 @@ public final class ExecuteThread extends Thread {
 						if (workAdapter != null) {
 							timeStamp = System.currentTimeMillis();
 							workAdapter.startedTimeStamp = timeStamp;
-							execute(workAdapter);
+							execute(workAdapter); /* MARK */
 						}
 						WorkAdapter memoryAdapter = workAdapter;
 						reset();

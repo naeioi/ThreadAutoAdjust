@@ -26,7 +26,7 @@ public final class RequestManager {
     private int toDecrement;
     private final ThreadGroup threadGroup;
     private final BitSet recycledIDs;
-    public long departures = 0;
+    public long handledRequest = 0;
 
     public long mtcDepartures = 0;
     public long rejectedCount = 0;
@@ -106,7 +106,8 @@ public final class RequestManager {
 
     public boolean executeIt(WorkAdapter workAdapter) {
         ExecuteThread executethread = null;
-//			int i = 0;
+
+        /* pop an idle thread from idleThreads */
         synchronized (this) {
             if (idleThreads.size() > 0) {
                 executethread = (ExecuteThread) idleThreads.pop();
@@ -118,7 +119,7 @@ public final class RequestManager {
                 return false;
             }
         }
-        departures++;
+        handledRequest++;
         executethread.notifyRequest(workAdapter);
         return true;
     }
@@ -208,7 +209,7 @@ public final class RequestManager {
                 fireQueueEmptied(l1, l);
             return true;
         } else {
-            departures++;
+            handledRequest++;
             executethread.setRequest(workadapter1, l2);
             // System.out.println("ExecuteThread[" + executethread +"] continue
             // to execute workmanager["+workadapter1+"].");
@@ -519,8 +520,8 @@ public final class RequestManager {
         return healthyThreads.size();
     }
 
-    public long getQueueDepartures() {
-        return departures;
+    public long getHandledRequests() {
+        return handledRequest;
     }
 
     public int getIdleThreadCount() {
