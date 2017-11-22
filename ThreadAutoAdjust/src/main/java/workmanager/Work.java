@@ -1,4 +1,4 @@
-package workmanager.common;
+package workmanager;
 
 /**
  * <p>

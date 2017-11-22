@@ -1,17 +1,21 @@
 package workmanager;
 
-import workmanager.common.Work;
-
-import java.util.Random;
-
 public class WorkAdapter implements Work {
+	public long creationTimeStamp;
+	public long startedTimeStamp;
+	public boolean started;
+	private boolean scheduled;
+	public FairShareRequestClass requestClass;
+	private Runnable task;
+
 	public WorkAdapter() {
 		creationTimeStamp = System.currentTimeMillis();
 		this.requestClass=RequestManager.requestClass;
 	}
 	
-	public WorkAdapter(Runnable task){
+	public WorkAdapter(Runnable task_){
 		this();
+		task = task_;
 	}
 
 	public void prepareForReuse() {
@@ -63,22 +67,10 @@ public class WorkAdapter implements Work {
 		return true;
 	}
 
-	// end
-
-	public long creationTimeStamp;
-	public long startedTimeStamp;
-	public boolean started;
-	private boolean scheduled;
-	public FairShareRequestClass requestClass;
-
 	public void run() {
-		Random Random=new Random();
-		long l=System.currentTimeMillis();
-		int index=(int)(Random.nextFloat()*10000);
-		for(int i=0;i<index;i++){
-			Math.pow(Random.nextDouble(),Random.nextDouble());
+		if(task != null) {
+			startedTimeStamp = System.currentTimeMillis();
+			task.run();
 		}
-//		System.out.println(System.currentTimeMillis()-l);
-		
 	}
 }

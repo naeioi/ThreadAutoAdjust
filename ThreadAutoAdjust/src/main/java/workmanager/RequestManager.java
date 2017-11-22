@@ -11,7 +11,7 @@ public final class RequestManager {
     private static final int INCREMENT_ADVISOR_PERIOD = 2000;
     private static final int INCREMENT_ADVISOR_START_DELAY = 2000;
     private static final int MAX_STANDBY_THREADS = 200;
-    private static final int MAX_QUEUE_SIZE = 1000;
+    private static final int MAX_QUEUE_SIZE = 200;
 
     // TODO what is the purpose of creating ACTIVATE_REQUEST and SHUTDOWN_REQUEST?
     private static final WorkAdapter ACTIVATE_REQUEST = new ActivateRequest();
@@ -115,23 +115,27 @@ public final class RequestManager {
             if (executethread != null) {
                 workAdapter.started = true;
             } else {
-                addToPriorityQueue(workAdapter);
-                return false;
+                return addToPriorityQueue(workAdapter);
             }
         }
+        /* workAdapter is passed to executethread
+         * and immediately run. Q: why for priorityQueue?
+         */
         handledRequest++;
         executethread.notifyRequest(workAdapter);
         return true;
     }
 
-    private void addToPriorityQueue(WorkAdapter workadapter) {
+    private Boolean addToPriorityQueue(WorkAdapter workadapter) {
         if (queue.size() < MAX_QUEUE_SIZE) {
             if (queue.size() == 0)
                 busyPeriodStart = System.currentTimeMillis();
             queue.add(workadapter, requestClass);
             queueDepth++;
             queueNonEmpty++;
+            return true;
         }
+        return false;
     }
 
     private boolean createThreadAndExecute(int i, WorkAdapter workadapter) {
@@ -509,6 +513,7 @@ public final class RequestManager {
     }
 
     public int getTotalRequestsCount() {
+        /* waiting + processing */
         return getQueueDepth() + (healthyThreads.size() - idleThreads.size());
     }
 

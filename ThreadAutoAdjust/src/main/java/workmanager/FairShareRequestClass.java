@@ -1,6 +1,5 @@
 package workmanager;
 
-
 public class FairShareRequestClass extends ServiceClassSupport {
     public static final int DEFAULT_FAIR_SHARE = 50;
     private static final double DEFAULT_INCR = 1000D;

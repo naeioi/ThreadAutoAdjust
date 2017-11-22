@@ -1,6 +1,5 @@
 package workmanager;
 
-import java.io.InputStream;
 import java.util.ConcurrentModificationException;
 import java.util.Properties;
 import java.util.Random;
@@ -8,6 +7,9 @@ import java.util.TimerTask;
 
 public final class IncrementAdvisor extends TimerTask {
     private static final class SmoothedStats {
+        static long freshnessHalfLife = 30000L;
+        private long updateTimestamp = 0;
+        private double freshness = 1;
         private double n;
         private double sum;
         private double squaresSum;
@@ -38,10 +40,15 @@ public final class IncrementAdvisor extends TimerTask {
         }
 
         void add(double d) {
-            double d1 = 1.0 - 1.0 / IncrementAdvisor.HORIZON;
+            long now = System.currentTimeMillis();
+            long delta = now - updateTimestamp;
+            // double d1 = Math.pow(0.5, (now - updateTimestamp) / HORIZON);
+            double d1 = 1 - 1 / HORIZON;
             n = d1 * n + 1.0;
             sum = d1 * sum + d;
             squaresSum = d1 * squaresSum + d * d;
+            freshness = d1 * freshness * Math.pow(0.5, delta / freshnessHalfLife) + 1 - d1;
+            updateTimestamp = now;
         }
 
         double getAvg() {
@@ -68,17 +75,25 @@ public final class IncrementAdvisor extends TimerTask {
                     / Math.sqrt(d2)) : d <= 0.0 ? 0 : 1;
         }
 
+        double getFreshness() {
+            return Math.pow(0.5, (System.currentTimeMillis() - updateTimestamp) / freshnessHalfLife) * freshness;
+        }
+
         SmoothedStats(double d) {
             n = 1.0;
             sum = d;
             squaresSum = d * d;
+            updateTimestamp = System.currentTimeMillis();
         }
     }
+    private static final int DEFAULT_MIN_POOL_SIZE = 10;
 
-    private static final int MIN_POOL_SIZE = Integer.parseInt(getProperties().getProperty("workmanager.minPoolSize", "30"));
+    private static final int DEFAULT_MAX_POOL_SIZE = 1000;
+
+    private static final int MIN_POOL_SIZE = Integer.parseInt(System.getProperty("workmanager.minPoolSize", String.valueOf(DEFAULT_MIN_POOL_SIZE)));
 
     // private static final int MIN_POOL_SIZE = 200;
-    private static final int MAX_POOL_SIZE = Integer.parseInt(getProperties().getProperty("workmanager.maxPoolSize", "300"));
+    private static final int MAX_POOL_SIZE = Integer.parseInt(System.getProperty("workmanager.maxPoolSize", String.valueOf(DEFAULT_MAX_POOL_SIZE)));
 
     // private static final int MAX_POOL_SIZE = 1000;
     public static final double PERIOD = 2000D;
@@ -87,7 +102,7 @@ public final class IncrementAdvisor extends TimerTask {
 
     private static final Random RANDOM = new Random(123L);
 
-    private static double HORIZON = 50D;
+    private static double HORIZON = 30000D;
 
     private static final int Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD = 15000;
 
@@ -107,12 +122,14 @@ public final class IncrementAdvisor extends TimerTask {
 
     private int attemptToIncrementCount;
 
-    // the max completed jobs per second
+    /* the max completed jobs per second.
+     * What's the difference from max throughput?
+     */
     private int maxY;
 
-    private double work_completed_per_second_duration;
+    private double work_completed_per_second;
 
-    private double previousY;
+    // private double previousY;
 
     private double maxThroughput;
 
@@ -124,8 +141,6 @@ public final class IncrementAdvisor extends TimerTask {
 
     private static Properties properties;
 
-    private static String configFile = "config.properties";
-
     FairShareRequestClass requestClass;
 
     public IncrementAdvisor(FairShareRequestClass requestClass) {
@@ -134,28 +149,6 @@ public final class IncrementAdvisor extends TimerTask {
         maxY = 0;
         this.requestClass = requestClass;
     }
-
-    public static Properties getProperties() {
-        if (properties != null) {
-            return properties;
-        } else {
-            InputStream in = IncrementAdvisor.class.getClassLoader()
-                    .getResourceAsStream("config.properties");
-            properties = new Properties();
-            try {
-                properties.load(in);
-            } catch (Throwable e1) {
-                throw new RuntimeException("Service configuration properties "
-                        + "config.properties " + " not found.");
-            }
-        }
-        return properties;
-    }
-
-    private static int initProperty(String s) {
-        return Integer.getInteger(s).intValue();
-    }
-
 
     /**
      * @param i current healthy threads count
@@ -211,83 +204,78 @@ public final class IncrementAdvisor extends TimerTask {
         int work_completed_total;
         long thread_usetime_total;
 
-        do {
-            work_completed_total = 0;
-            thread_usetime_total = 0L;
-            ServiceClassStatsSupport serviceclassstatssupport = (ServiceClassStatsSupport) requestClass;
-            if (serviceclassstatssupport != null) {
-                work_completed_total += serviceclassstatssupport.getCompleted();
-                thread_usetime_total += serviceclassstatssupport.getThreadUse();
-            }
-            break;
-        } while (true);
-
-        // j : workmanager completed in l2
-        int work_completed_duration = work_completed_total - previousCompleted;
-        if (work_completed_duration == 0) {
-            zeroCompletedDuration++;
-        } else {
-            zeroCompletedDuration = 0;
+        work_completed_total = 0;
+        thread_usetime_total = 0L;
+        ServiceClassStatsSupport serviceclassstatssupport = (ServiceClassStatsSupport) requestClass;
+        if (serviceclassstatssupport != null) {
+            work_completed_total += serviceclassstatssupport.getCompleted();
+            thread_usetime_total += serviceclassstatssupport.getThreadUse();
         }
 
         long now = System.currentTimeMillis();
-        // l2 : time interval
         long time_interval = now - timeStamp;
-        if (time_interval == 0L) {
-            return;
-        }
-        // k : thread use time in this l2
-        int thread_usetime_duration = (int) (thread_usetime_total - previousThreadTime);
+        int work_completed_period = work_completed_total - previousCompleted;
+        int thread_usetime_period = (int) (thread_usetime_total - previousThreadTime);
+
+        timeStamp = now;
+        previousCompleted = work_completed_total;
+        previousThreadTime = thread_usetime_total;
+        // previousY = work_completed_per_second;
+
+        if (work_completed_period == 0) zeroCompletedDuration++;
+        else zeroCompletedDuration = 0;
+        if (time_interval == 0L) return;
+
         // 降低hog的标准，加快调整速度
-        // int i1 = j != 0 && k >= 900 * j ? div(k, j) : 900;
-        int judgment_hogthreads_index = work_completed_duration != 0 && 7 * thread_usetime_duration >= 4000 * work_completed_duration ? div(7 * thread_usetime_duration, work_completed_duration) : 4000;
-        // j1 : current healthy threads count
-        // System.out.println("Hog time = " + i1);
-        int healthy_threads_length = requestmanager.purgeHogs(judgment_hogthreads_index);
-        // System.out.println("Hog size = " + requestmanager.getHogSize());
+        int hogthreads_threshold = work_completed_period != 0 && 7 * thread_usetime_period >= 4000 * work_completed_period ? div(7 * thread_usetime_period, work_completed_period) : 4000;
+        int healthy_threads_length = requestmanager.purgeHogs(hogthreads_threshold);
+
         if (flag)
             log("active threads: "
                     + requestmanager.getActiveExecuteThreadCount()
                     + ", standby: " + requestmanager.getStandbyCount()
                     + ", idle: " + requestmanager.getIdleThreadCount()
                     + ", hogs: " + requestmanager.getHogSize());
-        // k1 thread use time per second
-        //only the time used by thread during sampling period above half of the interval time(1s) will cause the param  thread_usetime_per_second_duration greater than zero
-        int thread_usetime_per_second_duration = (int) (((long) thread_usetime_duration + time_interval / 2L) / time_interval);
+
+        //only the time used by thread during sampling period above half of the interval time(1s) will cause the param real_parallelism greater than zero
+         /* For perfect parallel, thread_usetime == time_interval * parallelism,
+          * When high parallelism hurts performance, thread_usetime > time_interval * parallelism
+          */
+        int real_parallelism = (int) (((long) thread_usetime_period + time_interval / 2L) / time_interval);
         // y : 每秒完成的任务数
-        work_completed_per_second_duration = (1000D * (double) work_completed_duration) / (double) time_interval;
+        work_completed_per_second = (1000D * (double) work_completed_period) / (double) time_interval;
 
         if (flag)
             log("y,dCompleted,elapsedTime,threadUse,n,usedThreads,queuelength=\t"
-                    + (int) (work_completed_per_second_duration + 0.5D)
+                    + (int) (work_completed_per_second + 0.5D)
                     + "\t"
-                    + work_completed_duration
+                    + work_completed_period
                     + "\t"
                     + time_interval
                     + "\t"
-                    + thread_usetime_duration
+                    + thread_usetime_period
                     + "\t"
-                    + healthy_threads_length + "\t" + thread_usetime_per_second_duration + "\t" + requestmanager.queue.size());
+                    + healthy_threads_length + "\t" + real_parallelism + "\t" + requestmanager.queue.size());
 
-        // i2 : queue length
         int queue_length = requestmanager.queue.size();
 
         if (debugEnabled()) {
             System.out.println("****************");
             System.out.println("");
-            System.out.println("k1 = " + thread_usetime_per_second_duration + "  j1 = " + healthy_threads_length);
-            System.out.println("k = " + thread_usetime_duration + "  l2 = " + time_interval);
+            System.out.println("k1 = " + real_parallelism + "  j1 = " + healthy_threads_length);
+            System.out.println("k = " + thread_usetime_period + "  l2 = " + time_interval);
         }
-        if (queue_length > 0 && work_completed_duration > 0 && thread_usetime_per_second_duration < healthy_threads_length) {
+        if (queue_length > 0 && work_completed_period > 0 && real_parallelism < healthy_threads_length) {
             // thread utilization in last interval is lower than the predicted
             // utilization
             if (debugEnabled()) {
-                System.out.println("Suspicious: " + work_completed_per_second_duration + "\t" + thread_usetime_per_second_duration);
+                System.out.println("Suspicious: " + work_completed_per_second + "\t" + real_parallelism);
                 System.out.println("");
                 System.out.println("****************");
             }
             return;
         }
+
         if (healthy_threads_length >= throughput.length) {
             SmoothedStats asmoothedstats[] = throughput;
             throughput = new SmoothedStats[healthy_threads_length + 1];
@@ -295,23 +283,17 @@ public final class IncrementAdvisor extends TimerTask {
                     asmoothedstats.length);
         }
 
-        // thread utilization in last interval gets above the predicted
-        // utilization
-        if (thread_usetime_per_second_duration >= healthy_threads_length)
-            addSample(healthy_threads_length, work_completed_per_second_duration);
-
-        previousCompleted = work_completed_total;
-        previousY = work_completed_per_second_duration;
-        previousThreadTime = thread_usetime_total;
-        timeStamp = now;
         stats.reset();
         try {
+            /* TODO: Intention of timeElapsed
+             * I guess it is use to adjust priority of requestClass
+             * Because we have only one requestClass here this is actually of no use
+             */
             requestClass.timeElapsed(time_interval, stats);
-        } catch (ConcurrentModificationException concurrentmodificationexception1) {
+        } catch (ConcurrentModificationException _e) {
         }
 
         int min_threadpool_size = getMinThreadPoolSize();
-        //
         if (healthy_threads_length < min_threadpool_size) {
             // 如果健康线程个数小于最小线程池大小，则补充相应的差额
             if (debugEnabled()) {
@@ -320,7 +302,6 @@ public final class IncrementAdvisor extends TimerTask {
                 System.out.println("****************");
             }
             //  如果健康线程个数小于最小线程池大小，则逐一递增
-//			requestmanager.incrPoolSize(j2 - j1);
             requestmanager.incrPoolSize(1);
             return;
         }
@@ -336,8 +317,10 @@ public final class IncrementAdvisor extends TimerTask {
             return;
         }
 
-        // Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD = 15000
-        if (maxY == 0 && work_completed_per_second_duration > Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD) {
+        /* TODO: what's the intention?
+         * priority: low
+         */
+        if (maxY == 0 && work_completed_per_second > Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD) {
             // 第一次有任务到来，每秒完成的任务数超过Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD，则减少线程数至CPU数量
             reset(requestmanager, healthy_threads_length);
             if (debugEnabled()) {
@@ -349,19 +332,21 @@ public final class IncrementAdvisor extends TimerTask {
             return;
         }
 
-//		ThreadPriorityManager.getInstance().computeThreadPriorities(
-//				requestmanager.requestClasses);
-        initMaxValues(requestmanager.getTotalRequestsCount(), work_completed_per_second_duration);
-        // showThroughput();
+        /* detect bottleneck caused by high parallelism */
+        if (real_parallelism >= healthy_threads_length)
+            addSample(healthy_threads_length, work_completed_per_second);
+        initMaxValues(requestmanager.getTotalRequestsCount(), work_completed_per_second);
         initIndexes(healthy_threads_length);
+        /* TODO: what's decrAttraction? */
         double d = RANDOM.nextFloat();
         double d1 = getDecrAttraction(healthy_threads_length, min_threadpool_size);
         double d2 = getIncrAttraction(healthy_threads_length);
-        if (debugEnabled()) {
+        if (/* debugEnabled() */ true) {
             System.out.println("attraction decr=" + d1 + ", incr=" + d2
                     + ", rand=" + d);
         }
-        if (d1 > d2) {
+
+        if (d1 > d2 || (d1 == d2 && RANDOM.nextFloat() > 0.5)) {
             if (d1 > d) {
                 if (/*debugEnabled()*/true) {
                     System.out.println("incrPoolSize = "
@@ -369,29 +354,27 @@ public final class IncrementAdvisor extends TimerTask {
                     System.out.println("");
                     System.out.println("****************");
                 }
-                requestmanager.incrPoolSize(previousSampleIndex - healthy_threads_length);
+                // requestmanager.incrPoolSize(previousSampleIndex - healthy_threads_length);
+                requestmanager.incrPoolSize(-2);
             }
             attemptToIncrementCount = 0;
             return;
         }
 
-        // attemptToIncrementCount 3
-        // if(i2 > 0 && j1 < getMaxThreadPoolSize() && (attemptToIncrementCount
-        // >= 0 || d2 > d))
         if (queue_length > 0 && healthy_threads_length < getMaxThreadPoolSize()
                 && (attemptToIncrementCount >= 3 || d2 > d)) {
             attemptToIncrementCount = 0;
             int k2 = 1;
             if (!mustIncrementByOne(d2, d1, healthy_threads_length, nextSampleIndex))
                 k2 = Math.max(nextSampleIndex - healthy_threads_length,
-                        getIncrementInterval((int) work_completed_per_second_duration));
+                        getIncrementInterval((int) work_completed_per_second));
 
             requestmanager.incrPoolSize(k2);
-            if (debugEnabled()) {
+            if (/* debugEnabled() */ true) {
                 System.out.println("nextSampleIndex - j1 = "
                         + (nextSampleIndex - healthy_threads_length));
                 System.out.println("getIncrementInterval = "
-                        + (getIncrementInterval((int) work_completed_per_second_duration)));
+                        + (getIncrementInterval((int) work_completed_per_second)));
                 System.out
                         .println("attemptToIncrementCount >= 3 || d2 > d Growing with attraction= "
                                 + d2 + ", increment interval=" + k2);
@@ -437,12 +420,12 @@ public final class IncrementAdvisor extends TimerTask {
     }
 
     /**
-     * @param i current total request count
-     * @param d completed jobs per second
+     * @param total_reqs current total request count
+     * @param completed_last_sec completed jobs per second
      */
     //maxThroughout in consideration of history data while maxY just reflect current value
-    private void initMaxValues(int i, double d) {
-        if (i == 0) {
+    private void initMaxValues(int total_reqs, double completed_last_sec) {
+        if (total_reqs == 0) {
             if (debugEnabled())
                 log("RESETTING maxThroughput and maxY");
             maxThroughput = maxY = 0;
@@ -452,48 +435,63 @@ public final class IncrementAdvisor extends TimerTask {
             if (debugEnabled())
                 log("maxThroughput=" + maxThroughput + ",lastThroughput="
                         + lastThroughput);
-            maxY = (int) Math.max(maxY, d);
+            maxY = (int) Math.max(maxY, completed_last_sec);
             if (debugEnabled())
-                log("maxY=" + maxY + ", y=" + d);
+                log("maxY=" + maxY + ", y=" + completed_last_sec);
         }
     }
 
+    /**
+     * @param i parallelism
+     */
     private void initIndexes(int i) {
         previousSampleIndex = 0;
         nextSampleIndex = 0;
         int j = i - 1;
+        long now = System.currentTimeMillis();
+        /* find last throughput[j] != null for j < i */
         do {
             if (j < 0)
                 break;
             if (throughput[j] != null) {
-                previousSampleIndex = j;
-                break;
+                if(now - throughput[j].updateTimestamp > 10000)
+                    throughput[j] = null;
+                else {
+                    previousSampleIndex = j;
+                    break;
+                }
             }
             j--;
         } while (true);
+        /* find first throughput[j] != null for j > i */
         j = i + 1;
         do {
             if (j >= throughput.length)
                 break;
             if (throughput[j] != null) {
-                nextSampleIndex = j;
-                break;
+                if(now - throughput[j].updateTimestamp > 10000)
+                    throughput[j] = null;
+                else {
+                    nextSampleIndex = j;
+                    break;
+                }
             }
             j++;
         } while (true);
     }
 
     private int getIncrementInterval(int i) {
-        if (maxY == 0 || i == 0)
-            return 1;
-        int j = maxY / i;
-        if (j <= 1)
-            return 1;
-        // 最大不能超过20
-        int k = Math.min(20, 3 * j + 1);
-        if (debugEnabled())
-            log("Calculated increment interval=" + k);
-        return k;
+        return 1;
+//        if (maxY == 0 || i == 0)
+//            return 1;
+//        int j = maxY / i;
+//        if (j <= 1)
+//            return 1;
+//        // 最大不能超过20
+//        int k = Math.min(20, 3 * j + 1);
+//        if (debugEnabled())
+//            log("Calculated increment interval=" + k);
+//        return k;
     }
 
 //	private void activeRequestClassesInOverload() {
@@ -509,14 +507,15 @@ public final class IncrementAdvisor extends TimerTask {
         return (i + j / 2) / j;
     }
 
+    final private Random prand = new Random();
     private double getIncrAttraction(int i) {
-        if (debugEnabled())
+        if (/* debugEnabled() */ true)
             log("[getIncrAttraction] next=" + nextSampleIndex + ", current="
                     + i);
         if (nextSampleIndex == 0)
-            return NOVELTY_ATTRACTION;//why not 1?
+            return NOVELTY_ATTRACTION;
         SmoothedStats smoothedstats = throughput[nextSampleIndex];
-        if (smoothedstats == null || throughput[i] == null)
+        if (smoothedstats == null || throughput[i] == null /* || throughput[i].getFreshness() < prand.nextDouble() */)
             return NOVELTY_ATTRACTION;
         else
             return throughput[i].pLessThan(smoothedstats);
@@ -531,11 +530,12 @@ public final class IncrementAdvisor extends TimerTask {
         if (debugEnabled())
             log("[getDecrAttraction] previous=" + previousSampleIndex
                     + ", current=" + i);
-        if (i <= j || previousSampleIndex == 0)
+        if (i <= j)
             return 0.0D;
+        if(previousSampleIndex == 0)
+            return NOVELTY_ATTRACTION;
         SmoothedStats smoothedstats = throughput[previousSampleIndex];
-        if (smoothedstats == null || throughput[i] == null)
-            // 0.5
+        if (smoothedstats == null || throughput[i] == null /* || throughput[i].getFreshness() < prand.nextDouble() */)
             return NOVELTY_ATTRACTION;
         double d = throughput[i].pLessThan(smoothedstats);
         // HIGH_THROUGHPUT_THRESHOLD = 20000
@@ -571,7 +571,7 @@ public final class IncrementAdvisor extends TimerTask {
     }
 
     public double getThroughput() {
-        return work_completed_per_second_duration;
+        return work_completed_per_second;
     }
 
     private static boolean debugEnabled() {
