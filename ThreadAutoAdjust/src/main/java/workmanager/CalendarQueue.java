@@ -9,7 +9,7 @@ public class CalendarQueue {
     private int last[];
     private long time[];
     private Object data[];
-    private static Boolean debug_CalendarQueue = false;
+    private Logger logger = DebugWM.getLogger(this.getClass());
 
     CalendarQueue() {
         this(400);
@@ -33,9 +33,7 @@ public class CalendarQueue {
     public void add(Object obj, RequestClass requestclass) {
         long vti = requestclass.getVirtualTimeIncrement(now);
         long l = now + vti;
-        if (debug_CalendarQueue) {
-            System.out.println("VirtualTimeIncrement = " + vti);
-        }
+        logger.verbose("VirtualTimeIncrement = " + vti);
         int i = allocNode();
         data[i] = obj;
         time[i] = l;

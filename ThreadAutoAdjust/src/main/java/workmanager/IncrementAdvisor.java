@@ -7,9 +7,7 @@ import java.util.TimerTask;
 
 public final class IncrementAdvisor extends TimerTask {
     private static final class SmoothedStats {
-        static long freshnessHalfLife = 30000L;
         private long updateTimestamp = 0;
-        private double freshness = 1;
         private double n;
         private double sum;
         private double squaresSum;
@@ -40,15 +38,11 @@ public final class IncrementAdvisor extends TimerTask {
         }
 
         void add(double d) {
-            long now = System.currentTimeMillis();
-            long delta = now - updateTimestamp;
-            // double d1 = Math.pow(0.5, (now - updateTimestamp) / HORIZON);
             double d1 = 1 - 1 / HORIZON;
             n = d1 * n + 1.0;
             sum = d1 * sum + d;
             squaresSum = d1 * squaresSum + d * d;
-            freshness = d1 * freshness * Math.pow(0.5, delta / freshnessHalfLife) + 1 - d1;
-            updateTimestamp = now;
+            updateTimestamp = System.currentTimeMillis();
         }
 
         double getAvg() {
@@ -75,10 +69,6 @@ public final class IncrementAdvisor extends TimerTask {
                     / Math.sqrt(d2)) : d <= 0.0 ? 0 : 1;
         }
 
-        double getFreshness() {
-            return Math.pow(0.5, (System.currentTimeMillis() - updateTimestamp) / freshnessHalfLife) * freshness;
-        }
-
         SmoothedStats(double d) {
             n = 1.0;
             sum = d;
@@ -86,23 +76,24 @@ public final class IncrementAdvisor extends TimerTask {
             updateTimestamp = System.currentTimeMillis();
         }
     }
+
+    private static final int DEFAULT_STATS_EXPIRE_TIME = 10000;
+
     private static final int DEFAULT_MIN_POOL_SIZE = 10;
 
     private static final int DEFAULT_MAX_POOL_SIZE = 1000;
 
+    private static final int STATS_EXPIRE_TIME = Integer.parseInt(System.getProperty("workmanager.statsExpireTime", String.valueOf(DEFAULT_STATS_EXPIRE_TIME)));;
+
     private static final int MIN_POOL_SIZE = Integer.parseInt(System.getProperty("workmanager.minPoolSize", String.valueOf(DEFAULT_MIN_POOL_SIZE)));
 
-    // private static final int MIN_POOL_SIZE = 200;
     private static final int MAX_POOL_SIZE = Integer.parseInt(System.getProperty("workmanager.maxPoolSize", String.valueOf(DEFAULT_MAX_POOL_SIZE)));
-
-    // private static final int MAX_POOL_SIZE = 1000;
-    public static final double PERIOD = 2000D;
 
     private static final double NOVELTY_ATTRACTION = 0.5D;
 
     private static final Random RANDOM = new Random(123L);
 
-    private static double HORIZON = 30000D;
+    private static double HORIZON = 50D;
 
     private static final int Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD = 15000;
 
@@ -129,7 +120,6 @@ public final class IncrementAdvisor extends TimerTask {
 
     private double work_completed_per_second;
 
-    // private double previousY;
 
     private double maxThroughput;
 
@@ -143,11 +133,16 @@ public final class IncrementAdvisor extends TimerTask {
 
     FairShareRequestClass requestClass;
 
-    public IncrementAdvisor(FairShareRequestClass requestClass) {
+    RequestManager requestManager;
+
+    static Logger logger = DebugWM.getLogger(IncrementAdvisor.class);
+
+    public IncrementAdvisor(FairShareRequestClass requestClass, RequestManager requestManager) {
         throughput = new SmoothedStats[0];
         timeStamp = System.currentTimeMillis();
         maxY = 0;
         this.requestClass = requestClass;
+        this.requestManager = requestManager;
     }
 
     /**
@@ -157,18 +152,16 @@ public final class IncrementAdvisor extends TimerTask {
     private void addSample(int i, double d) {
         if (i == 0)
             return;
-        if (debugEnabled())
-            log("adding sample. n=" + i + ", " + d);
+        logger.verbose("adding sample. n=" + i + ", " + d);
         SmoothedStats smoothedstats = throughput[i];
         if (smoothedstats == null) {
             smoothedstats = throughput[i] = new SmoothedStats(d);
         } else {
             if (smoothedstats.exceedsZ(d, 3D)) {
                 HORIZON = (HORIZON + 1.0D) / 2D;
-                if (debugEnabled())
-                    log("outlier z= " + smoothedstats.zScore(d) + ", y=" + d
-                            + ", avg=" + smoothedstats.getAvg()
-                            + " halve horizon to " + HORIZON);
+                logger.verbose("outlier z= " + smoothedstats.zScore(d) + ", y=" + d
+                        + ", avg=" + smoothedstats.getAvg()
+                        + " halve horizon to " + HORIZON);
             } else {
                 HORIZON++;
             }
@@ -178,29 +171,23 @@ public final class IncrementAdvisor extends TimerTask {
     }
 
     private void showThroughput() {
-        if (debugEnabled()) {
-            String s = "";
-            String s1 = "";
-            for (int i = 0; i < throughput.length; i++) {
-                SmoothedStats smoothedstats = throughput[i];
-                s1 = s1
-                        + (smoothedstats != null ? s
-                        + (int) (smoothedstats.getAvg() + NOVELTY_ATTRACTION)
-                        : s + "N/A");
-                s = "\t";
-            }
-
-            log(s1);
+        String s = "";
+        String s1 = "";
+        for (int i = 0; i < throughput.length; i++) {
+            SmoothedStats smoothedstats = throughput[i];
+            s1 = s1
+                    + (smoothedstats != null ? s
+                    + (int) (smoothedstats.getAvg() + NOVELTY_ATTRACTION)
+                    : s + "N/A");
+            s = "\t";
         }
+
+        logger.verbose(s1);
     }
 
     public void run() {
-        if (DebugWM.debug_FairShareRequest) {
-            System.out.println("IncrementAdvisor:   run()");
-        }
-        boolean flag = debugEnabled();
-        RequestManager requestmanager = RequestManager.getInstance();
-//		activeRequestClassesInOverload();
+
+        RequestManager requestmanager = requestManager;
         int work_completed_total;
         long thread_usetime_total;
 
@@ -230,12 +217,11 @@ public final class IncrementAdvisor extends TimerTask {
         int hogthreads_threshold = work_completed_period != 0 && 7 * thread_usetime_period >= 4000 * work_completed_period ? div(7 * thread_usetime_period, work_completed_period) : 4000;
         int healthy_threads_length = requestmanager.purgeHogs(hogthreads_threshold);
 
-        if (flag)
-            log("active threads: "
-                    + requestmanager.getActiveExecuteThreadCount()
-                    + ", standby: " + requestmanager.getStandbyCount()
-                    + ", idle: " + requestmanager.getIdleThreadCount()
-                    + ", hogs: " + requestmanager.getHogSize());
+        logger.verbose("active threads: "
+                + requestmanager.getActiveExecuteThreadCount()
+                + ", standby: " + requestmanager.getStandbyCount()
+                + ", idle: " + requestmanager.getIdleThreadCount()
+                + ", hogs: " + requestmanager.getHogSize());
 
         //only the time used by thread during sampling period above half of the interval time(1s) will cause the param real_parallelism greater than zero
          /* For perfect parallel, thread_usetime == time_interval * parallelism,
@@ -245,34 +231,32 @@ public final class IncrementAdvisor extends TimerTask {
         // y : 每秒完成的任务数
         work_completed_per_second = (1000D * (double) work_completed_period) / (double) time_interval;
 
-        if (flag)
-            log("y,dCompleted,elapsedTime,threadUse,n,usedThreads,queuelength=\t"
-                    + (int) (work_completed_per_second + 0.5D)
-                    + "\t"
-                    + work_completed_period
-                    + "\t"
-                    + time_interval
-                    + "\t"
-                    + thread_usetime_period
-                    + "\t"
-                    + healthy_threads_length + "\t" + real_parallelism + "\t" + requestmanager.queue.size());
+        logger.verbose("y,dCompleted,elapsedTime,threadUse,n,usedThreads,queuelength=\t"
+                + (int) (work_completed_per_second + 0.5D)
+                + "\t"
+                + work_completed_period
+                + "\t"
+                + time_interval
+                + "\t"
+                + thread_usetime_period
+                + "\t"
+                + healthy_threads_length + "\t" + real_parallelism + "\t" + requestmanager.queue.size());
 
         int queue_length = requestmanager.queue.size();
 
-        if (debugEnabled()) {
-            System.out.println("****************");
-            System.out.println("");
-            System.out.println("k1 = " + real_parallelism + "  j1 = " + healthy_threads_length);
-            System.out.println("k = " + thread_usetime_period + "  l2 = " + time_interval);
-        }
+        logger.verbose("****************");
+        logger.verbose("");
+        logger.verbose("k1 = " + real_parallelism + "  j1 = " + healthy_threads_length);
+        logger.verbose("k = " + thread_usetime_period + "  l2 = " + time_interval);
+
         if (queue_length > 0 && work_completed_period > 0 && real_parallelism < healthy_threads_length) {
             // thread utilization in last interval is lower than the predicted
             // utilization
-            if (debugEnabled()) {
-                System.out.println("Suspicious: " + work_completed_per_second + "\t" + real_parallelism);
-                System.out.println("");
-                System.out.println("****************");
-            }
+
+            logger.verbose("Suspicious: " + work_completed_per_second + "\t" + real_parallelism);
+            logger.verbose("");
+            logger.verbose("****************");
+
             return;
         }
 
@@ -296,11 +280,11 @@ public final class IncrementAdvisor extends TimerTask {
         int min_threadpool_size = getMinThreadPoolSize();
         if (healthy_threads_length < min_threadpool_size) {
             // 如果健康线程个数小于最小线程池大小，则补充相应的差额
-            if (debugEnabled()) {
-                System.out.println("如果健康线程个数小于最小线程池大小，则补充相应的差额");
-                System.out.println("");
-                System.out.println("****************");
-            }
+
+            logger.verbose("如果健康线程个数小于最小线程池大小，则补充相应的差额");
+            logger.verbose("");
+            logger.verbose("****************");
+
             //  如果健康线程个数小于最小线程池大小，则逐一递增
             requestmanager.incrPoolSize(1);
             return;
@@ -309,11 +293,11 @@ public final class IncrementAdvisor extends TimerTask {
         if (queue_length > 0 && zeroCompletedDuration > 2) {
             // 等待队列不为空，且连续两个Interval没有任务完成，即大于4s
             requestmanager.incrPoolSize(1);
-            if (debugEnabled()) {
-                System.out.println("等待队列不为空，且连续两个Interval没有任务完成，增加线程池容量 +1");
-                System.out.println("");
-                System.out.println("****************");
-            }
+
+            logger.verbose("等待队列不为空，且连续两个Interval没有任务完成，增加线程池容量 +1");
+            logger.verbose("");
+            logger.verbose("****************");
+
             return;
         }
 
@@ -323,12 +307,9 @@ public final class IncrementAdvisor extends TimerTask {
         if (maxY == 0 && work_completed_per_second > Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD) {
             // 第一次有任务到来，每秒完成的任务数超过Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD，则减少线程数至CPU数量
             reset(requestmanager, healthy_threads_length);
-            if (debugEnabled()) {
-                System.out
-                        .println("第一次有任务到来，每秒完成的任务数超过Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD，则减少线程数至CPU数量");
-                System.out.println("");
-                System.out.println("****************");
-            }
+            logger.verbose("第一次有任务到来，每秒完成的任务数超过Y_THRESHOLD_FOR_CPU_INTENSIVE_LOAD，则减少线程数至CPU数量");
+            logger.verbose("");
+            logger.verbose("****************");
             return;
         }
 
@@ -341,19 +322,16 @@ public final class IncrementAdvisor extends TimerTask {
         double d = RANDOM.nextFloat();
         double d1 = getDecrAttraction(healthy_threads_length, min_threadpool_size);
         double d2 = getIncrAttraction(healthy_threads_length);
-        if (/* debugEnabled() */ true) {
-            System.out.println("attraction decr=" + d1 + ", incr=" + d2
-                    + ", rand=" + d);
-        }
+
+        logger.debug("attraction decr=" + d1 + ", incr=" + d2
+                + ", rand=" + d);
 
         if (d1 > d2 || (d1 == d2 && RANDOM.nextFloat() > 0.5)) {
             if (d1 > d) {
-                if (/*debugEnabled()*/true) {
-                    System.out.println("incrPoolSize = "
-                            + (previousSampleIndex - healthy_threads_length));
-                    System.out.println("");
-                    System.out.println("****************");
-                }
+                logger.debug("incrPoolSize = "
+                        + (previousSampleIndex - healthy_threads_length));
+                logger.debug("");
+                logger.debug("****************");
                 // requestmanager.incrPoolSize(previousSampleIndex - healthy_threads_length);
                 requestmanager.incrPoolSize(-2);
             }
@@ -370,17 +348,14 @@ public final class IncrementAdvisor extends TimerTask {
                         getIncrementInterval((int) work_completed_per_second));
 
             requestmanager.incrPoolSize(k2);
-            if (/* debugEnabled() */ true) {
-                System.out.println("nextSampleIndex - j1 = "
-                        + (nextSampleIndex - healthy_threads_length));
-                System.out.println("getIncrementInterval = "
-                        + (getIncrementInterval((int) work_completed_per_second)));
-                System.out
-                        .println("attemptToIncrementCount >= 3 || d2 > d Growing with attraction= "
-                                + d2 + ", increment interval=" + k2);
-                System.out.println("");
-                System.out.println("****************");
-            }
+            logger.debug("nextSampleIndex - j1 = "
+                    + (nextSampleIndex - healthy_threads_length));
+            logger.debug("getIncrementInterval = "
+                    + (getIncrementInterval((int) work_completed_per_second)));
+            logger.debug("attemptToIncrementCount >= 3 || d2 > d Growing with attraction= "
+                            + d2 + ", increment interval=" + k2);
+            logger.debug("");
+            logger.debug("****************");
             return;
         } else {
             attemptToIncrementCount++;
@@ -413,8 +388,7 @@ public final class IncrementAdvisor extends TimerTask {
         int j = Runtime.getRuntime().availableProcessors();
         if (i <= j)
             return;
-        if (debugEnabled())
-            log("resetting thread count to cpucount=" + j);
+        logger.verbose("resetting thread count to cpucount=" + j);
         // decrPoolSize
         requestmanager.incrPoolSize(j - i);
     }
@@ -426,18 +400,15 @@ public final class IncrementAdvisor extends TimerTask {
     //maxThroughout in consideration of history data while maxY just reflect current value
     private void initMaxValues(int total_reqs, double completed_last_sec) {
         if (total_reqs == 0) {
-            if (debugEnabled())
-                log("RESETTING maxThroughput and maxY");
+            logger.verbose("RESETTING maxThroughput and maxY");
             maxThroughput = maxY = 0;
             lastThroughput = 0.0D;
         } else {
             maxThroughput = Math.max(maxThroughput, lastThroughput);
-            if (debugEnabled())
-                log("maxThroughput=" + maxThroughput + ",lastThroughput="
-                        + lastThroughput);
+            logger.verbose("maxThroughput=" + maxThroughput + ",lastThroughput="
+                    + lastThroughput);
             maxY = (int) Math.max(maxY, completed_last_sec);
-            if (debugEnabled())
-                log("maxY=" + maxY + ", y=" + completed_last_sec);
+            logger.verbose("maxY=" + maxY + ", y=" + completed_last_sec);
         }
     }
 
@@ -454,7 +425,7 @@ public final class IncrementAdvisor extends TimerTask {
             if (j < 0)
                 break;
             if (throughput[j] != null) {
-                if(now - throughput[j].updateTimestamp > 10000)
+                if(now - throughput[j].updateTimestamp > STATS_EXPIRE_TIME)
                     throughput[j] = null;
                 else {
                     previousSampleIndex = j;
@@ -469,7 +440,7 @@ public final class IncrementAdvisor extends TimerTask {
             if (j >= throughput.length)
                 break;
             if (throughput[j] != null) {
-                if(now - throughput[j].updateTimestamp > 10000)
+                if(now - throughput[j].updateTimestamp > STATS_EXPIRE_TIME)
                     throughput[j] = null;
                 else {
                     nextSampleIndex = j;
@@ -482,6 +453,9 @@ public final class IncrementAdvisor extends TimerTask {
 
     private int getIncrementInterval(int i) {
         return 1;
+        /* legacy code tries to increase by a large number,
+         * this causes burst in parallelism
+         */
 //        if (maxY == 0 || i == 0)
 //            return 1;
 //        int j = maxY / i;
@@ -494,28 +468,16 @@ public final class IncrementAdvisor extends TimerTask {
 //        return k;
     }
 
-//	private void activeRequestClassesInOverload() {
-//		RequestManager requestmanager = RequestManager.getInstance();
-//		int i = ServerWorkManagerImpl.SHARED_OVERLOAD_MANAGER.getCapacity();
-//		if (requestmanager.getTotalRequestsCount() >= i)
-//			requestmanager.activeRequestClassesInOverload(i);
-//		else
-//			requestmanager.resetActiveRequestClasses();
-//	}
-
     private static int div(int i, int j) {
         return (i + j / 2) / j;
     }
 
-    final private Random prand = new Random();
     private double getIncrAttraction(int i) {
-        if (/* debugEnabled() */ true)
-            log("[getIncrAttraction] next=" + nextSampleIndex + ", current="
-                    + i);
+        logger.debug("[getIncrAttraction] next=" + nextSampleIndex + ", current=" + i);
         if (nextSampleIndex == 0)
             return NOVELTY_ATTRACTION;
         SmoothedStats smoothedstats = throughput[nextSampleIndex];
-        if (smoothedstats == null || throughput[i] == null /* || throughput[i].getFreshness() < prand.nextDouble() */)
+        if (smoothedstats == null || throughput[i] == null )
             return NOVELTY_ATTRACTION;
         else
             return throughput[i].pLessThan(smoothedstats);
@@ -527,23 +489,20 @@ public final class IncrementAdvisor extends TimerTask {
      * @return
      */
     private double getDecrAttraction(int i, int j) {
-        if (debugEnabled())
-            log("[getDecrAttraction] previous=" + previousSampleIndex
-                    + ", current=" + i);
+        logger.debug("[getDecrAttraction] previous=" + previousSampleIndex
+                + ", current=" + i);
         if (i <= j)
             return 0.0D;
         if(previousSampleIndex == 0)
             return NOVELTY_ATTRACTION;
         SmoothedStats smoothedstats = throughput[previousSampleIndex];
-        if (smoothedstats == null || throughput[i] == null /* || throughput[i].getFreshness() < prand.nextDouble() */)
+        if (smoothedstats == null || throughput[i] == null)
             return NOVELTY_ATTRACTION;
         double d = throughput[i].pLessThan(smoothedstats);
-        // HIGH_THROUGHPUT_THRESHOLD = 20000
         if (d > NOVELTY_ATTRACTION
                 && lastThroughput < HIGH_THROUGHPUT_THRESHOLD
                 && notEnoughVariationFromMax()) {
-            if (debugEnabled())
-                log("decrAttraction is " + d + " but limiting it to 0.5");
+            logger.verbose("decrAttraction is " + d + " but limiting it to 0.5");
             return NOVELTY_ATTRACTION;
         } else {
             return d;
@@ -572,15 +531,6 @@ public final class IncrementAdvisor extends TimerTask {
 
     public double getThroughput() {
         return work_completed_per_second;
-    }
-
-    private static boolean debugEnabled() {
-        return false;
-    }
-
-    private static void log(String s) {
-        if (DebugWM.debug_IncreAD)
-            System.out.println("<IncrAdvisor>" + s);
     }
 
 }

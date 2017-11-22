@@ -12,23 +12,14 @@ public final class ExecuteThread extends Thread {
 
 	}
 
-	public ExecuteThread(int i, String s) {
-		super("ExecuteThread: '" + i + "' for queue: '" + s + "'");
-		stuckThread = false;
-		started = false;
-		executeCount = 0;
-		timeStamp = 0L;
-		standby = false;
-		init(i);
-	}
-
-	public ExecuteThread(int i, String s, ThreadGroup threadgroup) {
+	public ExecuteThread(int i, String s, ThreadGroup threadgroup, RequestManager requestManager) {
 		super(threadgroup, "ExecuteThread: '" + i + "' for queue: '" + s + "'");
 		stuckThread = false;
 		started = false;
 		executeCount = 0;
 		timeStamp = 0L;
 		standby = false;
+		this.requestManager = requestManager;
 		init(i);
 	}
 
@@ -126,7 +117,7 @@ public final class ExecuteThread extends Thread {
 						}
 						WorkAdapter memoryAdapter = workAdapter;
 						reset();
-						RequestManager.getInstance().registerIdle(this,
+						requestManager.registerIdle(this,
 								memoryAdapter);
 						memoryAdapter = null;
 					} while (workAdapter != null);
@@ -178,11 +169,6 @@ public final class ExecuteThread extends Thread {
 		return isHogger;
 	}
 
-	private static void log(String s) {
-
-		System.out.println("<ExecuteThread>" + s);
-	}
-
 	private static final boolean ASSERT = true;
 
 	private static final Throwable REQUEST_DEATH = new RequestDeath();
@@ -196,6 +182,8 @@ public final class ExecuteThread extends Thread {
 	private int hashcode;
 
 	public int id;
+
+	private RequestManager requestManager;
 
 	private ClassLoader contextClassLoader;
 

@@ -14,7 +14,6 @@ public class FairShareRequestClass extends ServiceClassSupport {
     private long previouslyUsed;
     private double smoothedIncr;
     private long initialIncrement;
-    private static final boolean DEBUG = DebugWM.debug_FairShareRequest;
 
     static {
         W = Math.pow(0.5D, PERIOD / HALF_LIFE);
@@ -52,7 +51,6 @@ public class FairShareRequestClass extends ServiceClassSupport {
     }
 
     public void timeElapsed(long l, ServiceClassesStats serviceclassesstats) {
-        log(this + "timeElapsed in");
         int i = previouslyCompleted;
         previouslyCompleted = getCompleted();
         int j = previouslyCompleted - i;
@@ -70,17 +68,10 @@ public class FairShareRequestClass extends ServiceClassSupport {
         if (l2 <= 0L)
             l2 = 1L;
         setIncrements(l2, l2);
-        log(this + "timeElapsed out");
     }
 
-    // by syk
     public int getFairShare() {
         return share;
-    }
-
-    private static void log(String s) {
-        if (DEBUG)
-            System.out.println("<FairShareRequestClass>" + s);
     }
 
 }

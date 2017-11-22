@@ -1,7 +1,5 @@
 package workmanager;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
-
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -9,8 +7,10 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executor;
 import java.util.logging.*;
+import java.util.logging.Logger;
 
 final public class ExecutorImpl implements Executor {
+
 	protected class ExecutorImplStats {
 		private int lastReceivedCount = -1;
 		private int lastAcceptedCount = -1;
@@ -22,14 +22,10 @@ final public class ExecutorImpl implements Executor {
 		public int getTotalRequestsCount() {
 			return requestManager.getTotalRequestsCount();
 		}
-		public int getCompletedCount() {
-			return completedCount;
-		}
+		public int getCompletedCount() { return completedCount; }
 		public double getCurrentThroughput() {
 			return requestManager.getThroughput();
 		}
-		public int getReceivedCount() { return receivedCount; }
-		public int getAcceptedCount() { return acceptedCount; }
 		private void updateCurrentDropRate() {
 			currentDropRate =
 			  lastAcceptedCount == -1 ? 0 : 1 - (double)(acceptedCount - lastAcceptedCount) / (receivedCount - lastReceivedCount);
@@ -48,16 +44,18 @@ final public class ExecutorImpl implements Executor {
 		public CSVFileHandler(String pattern, boolean append) throws IOException {
 			File file = new File(pattern);
 			boolean exist = file.exists();
+			String headers =
+			  "datetime, milliseconds," +
+			  "ActiveExecuteThreadCount," +
+			  "CompletedCount,TotalRequestsCount," +
+			  "CurrentThroughput,CurrentDropRate";
 
 			out = new PrintWriter(new BufferedWriter(new FileWriter(pattern, append)));
 			if(!exist || !append) {
-				out.println(
-				  "datetime, milliseconds," +
-					"ActiveExecuteThreadCount," +
-					"CompletedCount,TotalRequestsCount," +
-					"CurrentThroughput,CurrentDropRate");
+				out.println(headers);
 			}
-			System.out.println("Writing Workmanager log to " + pattern);
+
+			// System.out.println("Writing Workmanager log to " + pattern);
 		}
 
 		@Override
@@ -83,9 +81,15 @@ final public class ExecutorImpl implements Executor {
 	private String getCatalinaBase() {
 		return System.getProperty("catalina.base");
 	}
+	public RequestManager getRequestManager() {
+		return requestManager;
+	}
 
 	private String configParse(String origin) {
-		System.out.println(origin);
+		/* expand 'catalina.base' */
+
+		if(origin == null || origin.length() == 0) return null;
+
 		final String CATALINA_BASE_TOKEN = "${catalina.base}";
 		String replaced = origin;
 		int i;
@@ -102,33 +106,35 @@ final public class ExecutorImpl implements Executor {
 	}
 
 	public ExecutorImpl() throws IOException {
-		requestManager = RequestManager.getInstance();
-		stats = new ExecutorImplStats();
-		logFileHandler = new CSVFileHandler(configParse(System.getProperty("workmanager.logFile")), Boolean.valueOf(System.getProperty("workmanager.logAppend")));
-		log = Logger.getAnonymousLogger();
-		log.addHandler(logFileHandler);
-		// log.addHandler(new ConsoleHandler());
 
-		final long createMillis = System.currentTimeMillis();
-		(new Timer(true)).schedule(new TimerTask() {
-			@Override
-			public void run() {
-				stats.updateCurrentDropRate();
-				log.info(
-				  	System.currentTimeMillis() - createMillis + "," +
-					  stats.getActiveExecuteThreadCount() + "," +
-					stats.getCompletedCount() + "," +
-					stats.getTotalRequestsCount() + "," +
-					stats.getCurrentThroughput() + "," +
-					stats.getCurrentDropRate());
+		requestManager = RequestManager.newInstance();
 
-			}
-		}, 0, Integer.parseInt(System.getProperty("workmanager.logInterval", String.valueOf(100))));
+		String logfile = configParse(System.getProperty("workmanager.logFile"));
+		if(logfile != null) {
+			Boolean logfileAppend = Boolean.valueOf(System.getProperty("workmanager.logAppend"));
+			int logInterval = Integer.parseInt(System.getProperty("workmanager.logInterval", String.valueOf(100)));
+			final long createMillis = System.currentTimeMillis();
 
-	}
+			stats = new ExecutorImplStats();
+			logFileHandler = new CSVFileHandler(logfile, logfileAppend);
+			log = Logger.getAnonymousLogger();
+			log.addHandler(logFileHandler);
 
-	public RequestManager getRequestManager() {
-		return requestManager;
+			(new Timer(true)).schedule(new TimerTask() {
+				@Override
+				public void run() {
+					stats.updateCurrentDropRate();
+					log.info(
+					  System.currentTimeMillis() - createMillis + "," +
+						stats.getActiveExecuteThreadCount() + "," +
+						stats.getCompletedCount() + "," +
+						stats.getTotalRequestsCount() + "," +
+						stats.getCurrentThroughput() + "," +
+						stats.getCurrentDropRate());
+
+				}
+			}, 0, logInterval);
+		}
 	}
 
 	public void execute(final Runnable command) {

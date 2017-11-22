@@ -2,22 +2,17 @@ package workmanager;
 
 public interface RequestClass {
 
-	public abstract String getName();
+	String getName();
 
-	public abstract int getThreadPriority();
+	int getThreadPriority();
 
-	public abstract boolean isInternal();
+	boolean isInternal();
 
-	public abstract void queueEmptied(long l, float f);
+	void queueEmptied(long l, float f);
 
-	public abstract void workCompleted(long l, long l1);
+	void workCompleted(long l, long l1);
 
-	public abstract void timeElapsed(long l,
-                                     ServiceClassesStats serviceclassesstats);
+	void timeElapsed(long l, ServiceClassesStats serviceclassesstats);
 
-	public abstract long getVirtualTimeIncrement(long l);
-
-	public abstract int getPendingRequestsCount();
-
-//	public abstract void cleanup();
+	long getVirtualTimeIncrement(long l);
 }

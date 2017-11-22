@@ -5,7 +5,6 @@ import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Timer;
-import java.util.logging.Logger;
 
 public final class RequestManager {
     private static final int INCREMENT_ADVISOR_PERIOD = 2000;
@@ -21,16 +20,12 @@ public final class RequestManager {
     private final List healthyThreads;
     private final java.util.Stack<ExecuteThread> standbyThreadPool;
     private final HashSet hogs;
-    public final CalendarQueue queue;
+    final CalendarQueue queue;
     private long busyPeriodStart;
     private int toDecrement;
     private final ThreadGroup threadGroup;
     private final BitSet recycledIDs;
-    public long handledRequest = 0;
-
-    public long mtcDepartures = 0;
-    public long rejectedCount = 0;
-    public long canceledCount = 0;
+    private long handledRequest = 0;
 
     private int queueDepth;
     private final IncrementAdvisor incrementAdvisor;
@@ -38,47 +33,22 @@ public final class RequestManager {
     private int maxThreadIdValue;
 
     static FairShareRequestClass requestClass = new FairShareRequestClass("Default");
-    private static Logger log = Logger.getLogger(RequestManager.class.toString());
 
-    public static final class ShutdownError extends Error {
-
-        ShutdownError() {
-        }
+    static final class ShutdownError extends Error {
+        ShutdownError() { }
     }
 
     private static final class ActivateRequest extends WorkAdapter {
-
-        public void run() {
-        }
-
-        private ActivateRequest() {
-        }
-
+        public void run() { }
+        private ActivateRequest() { }
     }
 
     private static final class ShutdownRequest extends WorkAdapter {
-
         public void run() {
             throw new ShutdownError();
         }
 
-        private ShutdownRequest() {
-        }
-
-    }
-
-    private static final class Factory {
-
-        static final RequestManager THE_ONE;
-
-        // lazy load
-        static {
-            THE_ONE = new RequestManager();
-            THE_ONE.incrPoolSize(IncrementAdvisor.getMinThreadPoolSize());
-        }
-
-        private Factory() {
-        }
+        private ShutdownRequest() { }
     }
 
     private RequestManager() {
@@ -93,18 +63,21 @@ public final class RequestManager {
         try {
             threadgroup = new ThreadGroup("Pooled Threads");
         } catch (SecurityException securityexception) {
+            /* no-op */
         }
         threadGroup = threadgroup;
-        incrementAdvisor = new IncrementAdvisor(requestClass);
+        incrementAdvisor = new IncrementAdvisor(requestClass, this);
         (new Timer(true)).schedule(incrementAdvisor,
                 INCREMENT_ADVISOR_START_DELAY, INCREMENT_ADVISOR_PERIOD);
     }
 
-    public static RequestManager getInstance() {
-        return Factory.THE_ONE;
+    static RequestManager newInstance() {
+        RequestManager rm = new RequestManager();
+        rm.incrPoolSize(IncrementAdvisor.getMinThreadPoolSize());
+        return rm;
     }
 
-    public boolean executeIt(WorkAdapter workAdapter) {
+    boolean executeIt(WorkAdapter workAdapter) {
         ExecuteThread executethread = null;
 
         /* pop an idle thread from idleThreads */
@@ -154,7 +127,7 @@ public final class RequestManager {
     private ExecuteThread create(int i) {
         // need change classloader?
         ExecuteThread executethread = new ExecuteThread(i,
-                "onceas.kernel.Default (self-tuning)", threadGroup);
+                "onceas.kernel.Default (self-tuning)", threadGroup, this);
         synchronized (allThreads) {
             allThreads.add(executethread);
         }
@@ -199,8 +172,6 @@ public final class RequestManager {
             if (workadapter1 == null) {
 
                 idleThreads.push(executethread);
-                // System.out.println(executethread + " be put idleThreads pool
-                // because of no workmanager to do.");
                 l1 = getBusyPeriod(l2);
                 if (l1 > 0L)
                     l = queue.resetVirtualTime();
@@ -215,8 +186,6 @@ public final class RequestManager {
         } else {
             handledRequest++;
             executethread.setRequest(workadapter1, l2);
-            // System.out.println("ExecuteThread[" + executethread +"] continue
-            // to execute workmanager["+workadapter1+"].");
             return false;
         }
     }
@@ -560,12 +529,4 @@ public final class RequestManager {
         return flag;
     }
 
-    private static boolean debugEnabled() {
-        return DebugWM.debug_RequestManager;
-    }
-
-    private static void log(String s) {
-        // SelfTuningDebugLogger.debug("<RequestManager>" + s);
-        System.out.println("<RequestManager>" + s);
-    }
 }

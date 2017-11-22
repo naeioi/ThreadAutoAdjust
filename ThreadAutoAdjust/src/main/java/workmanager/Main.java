@@ -5,11 +5,6 @@ import java.io.InputStream;
 import java.util.*;
 
 public class Main {
-	private static final int INCREMENT_ADVISOR_PERIOD = 2000;
-
-	private static final int INCREMENT_ADVISOR_START_DELAY = 10000;
-
-	private static int USER_NUMBER = 200;
 
 	private static Object lock;
 
@@ -24,7 +19,6 @@ public class Main {
 
 	private static int getDelay() {
 		return 10;
-//		return getSelection() == 0 ? 20 : 10;
 	}
 
 	private static void loadConfig() throws IOException {
